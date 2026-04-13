@@ -3,16 +3,50 @@
 import { useState, useEffect } from 'react';
 import { PDFViewer, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 
-// ==================== CONSTANTES ====================
 const PRODUTOS_CONTRATO = [
+  // FORNECEDOR: COMÉRCIO DE BANANAS SANTOMÉ LTDA.
   { id: 1, codigo: 364, nome: 'BANANA MAÇÃ', desconto: 2.20 },
+  
+  // FORNECEDOR: HORTBRAS ALIMENTOS LTDA.
   { id: 2, codigo: 357, nome: 'ABÓBORA KABOTIÁ', desconto: 8.80 },
   { id: 3, codigo: 90539, nome: 'ABÓBORA MORANGA', desconto: 10.30 },
   { id: 4, codigo: 359, nome: 'ABÓBORA PAULISTA', desconto: 10.50 },
   { id: 5, codigo: 111964, nome: 'ABOBRINHA MENINA', desconto: 10.30 },
-  { id: 6, codigo: 90548, nome: 'MANGA TOMMY', desconto: 16.65 },
-  { id: 7, codigo: 1637, nome: 'PEPINO JAPONÊS', desconto: 10.10 },
-  { id: 8, codigo: 416, nome: 'TOMATE LONGA VIDA', desconto: 15.00 },
+  { id: 6, codigo: 272822, nome: 'COENTRO', desconto: 2.70 },
+  { id: 7, codigo: 379, nome: 'COUVE FLOR', desconto: 2.70 },
+  { id: 8, codigo: 111968, nome: 'GENGIBRE', desconto: 4.10 },
+  { id: 9, codigo: 89741, nome: 'GOIABA (VERMELHA/BRANCA)', desconto: 10.10 },
+  { id: 10, codigo: 271015, nome: 'INHAME', desconto: 10.10 },
+  { id: 11, codigo: 266834, nome: 'JILÓ', desconto: 7.10 },
+  { id: 12, codigo: 90548, nome: 'MANGA TOMMY', desconto: 16.65 },
+  { id: 13, codigo: 6602, nome: 'MARACUJÁ AZEDO', desconto: 10.10 },
+  { id: 14, codigo: 1046, nome: 'MELANCIA (REDONDA/COMPRIDA)', desconto: 19.10 },
+  { id: 15, codigo: 221173, nome: 'MEXERICA/TANGERINA (MURKOTE)', desconto: 10.10 },
+  { id: 16, codigo: 400, nome: 'MILHO VERDE', desconto: 10.10 },
+  { id: 17, codigo: 203414, nome: 'PEPINO AODAI/SALADA', desconto: 10.10 },
+  { id: 18, codigo: 1637, nome: 'PEPINO JAPONÊS', desconto: 10.10 },
+  { id: 19, codigo: 268125, nome: 'PÊRA IMPORTADA WILLIANS', desconto: 19.90 },
+  { id: 20, codigo: 111965, nome: 'PIMENTÃO AMARELO', desconto: 10.10 },
+  { id: 21, codigo: 3693, nome: 'PIMENTÃO VERDE', desconto: 9.10 },
+  { id: 22, codigo: 111966, nome: 'PIMENTÃO VERMELHO', desconto: 9.10 },
+  { id: 23, codigo: 90537, nome: 'QUIABO', desconto: 9.10 },
+  { id: 24, codigo: 417, nome: 'VAGEM MACARRÃO', desconto: 6.70 },
+
+  // FORNECEDOR: R. M. NASSER - EIRELI
+  { id: 25, codigo: 1107, nome: 'ABACAXI HAVAI', desconto: 14.80 },
+  { id: 26, codigo: 251658, nome: 'ABACAXI PÉROLA', desconto: 18.10 },
+  { id: 27, codigo: 361, nome: 'AGRIÃO', desconto: 3.30 },
+  { id: 28, codigo: 236941, nome: 'ALFACE AMERICANA', desconto: 3.20 },
+  { id: 29, codigo: 362, nome: 'ALFACE CRESPA', desconto: 3.20 },
+  { id: 30, codigo: 265691, nome: 'BERINJELA', desconto: 3.20 },
+  { id: 31, codigo: 371, nome: 'BETERRABA', desconto: 10.20 },
+  { id: 32, codigo: 221161, nome: 'CARÁ', desconto: 6.20 },
+  { id: 33, codigo: 203412, nome: 'MAMÃO HAVAI/PAPAYA', desconto: 10.10 },
+  { id: 34, codigo: 93945, nome: 'MORANGO', desconto: 10.20 },
+  { id: 35, codigo: 98800, nome: 'REPOLHO VERDE', desconto: 10.00 },
+  { id: 36, codigo: 90933, nome: 'REPOLHO ROXO', desconto: 10.00 },
+  { id: 37, codigo: 413, nome: 'RÚCULA', desconto: 8.60 },
+  { id: 38, codigo: 416, nome: 'TOMATE LONGA VIDA', desconto: 15.00 },
 ];
 
 const SENHA_SISTEMA = 'caps3maringa';
