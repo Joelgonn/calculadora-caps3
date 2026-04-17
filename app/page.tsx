@@ -1,976 +1,219 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { PDFViewer, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
-
-const PRODUTOS_CONTRATO = [
-  // FORNECEDOR: COMÉRCIO DE BANANAS SANTOMÉ LTDA.
-  { id: 1, codigo: 364, nome: 'BANANA MAÇÃ', desconto: 2.20 },
-  
-  // FORNECEDOR: HORTBRAS ALIMENTOS LTDA.
-  { id: 2, codigo: 357, nome: 'ABÓBORA KABOTIÁ', desconto: 8.80 },
-  { id: 3, codigo: 90539, nome: 'ABÓBORA MORANGA', desconto: 10.30 },
-  { id: 4, codigo: 359, nome: 'ABÓBORA PAULISTA', desconto: 10.50 },
-  { id: 5, codigo: 111964, nome: 'ABOBRINHA MENINA', desconto: 10.30 },
-  { id: 6, codigo: 272822, nome: 'COENTRO', desconto: 2.70 },
-  { id: 7, codigo: 379, nome: 'COUVE FLOR', desconto: 2.70 },
-  { id: 8, codigo: 111968, nome: 'GENGIBRE', desconto: 4.10 },
-  { id: 9, codigo: 89741, nome: 'GOIABA (VERMELHA/BRANCA)', desconto: 10.10 },
-  { id: 10, codigo: 271015, nome: 'INHAME', desconto: 10.10 },
-  { id: 11, codigo: 266834, nome: 'JILÓ', desconto: 7.10 },
-  { id: 12, codigo: 90548, nome: 'MANGA TOMMY', desconto: 16.65 },
-  { id: 13, codigo: 6602, nome: 'MARACUJÁ AZEDO', desconto: 10.10 },
-  { id: 14, codigo: 1046, nome: 'MELANCIA (REDONDA/COMPRIDA)', desconto: 19.10 },
-  { id: 15, codigo: 221173, nome: 'MEXERICA/TANGERINA (MURKOTE)', desconto: 10.10 },
-  { id: 16, codigo: 400, nome: 'MILHO VERDE', desconto: 10.10 },
-  { id: 17, codigo: 203414, nome: 'PEPINO AODAI/SALADA', desconto: 10.10 },
-  { id: 18, codigo: 1637, nome: 'PEPINO JAPONÊS', desconto: 10.10 },
-  { id: 19, codigo: 268125, nome: 'PÊRA IMPORTADA WILLIANS', desconto: 19.90 },
-  { id: 20, codigo: 111965, nome: 'PIMENTÃO AMARELO', desconto: 10.10 },
-  { id: 21, codigo: 3693, nome: 'PIMENTÃO VERDE', desconto: 9.10 },
-  { id: 22, codigo: 111966, nome: 'PIMENTÃO VERMELHO', desconto: 9.10 },
-  { id: 23, codigo: 90537, nome: 'QUIABO', desconto: 9.10 },
-  { id: 24, codigo: 417, nome: 'VAGEM MACARRÃO', desconto: 6.70 },
-
-  // FORNECEDOR: R. M. NASSER - EIRELI
-  { id: 25, codigo: 1107, nome: 'ABACAXI HAVAI', desconto: 14.80 },
-  { id: 26, codigo: 251658, nome: 'ABACAXI PÉROLA', desconto: 18.10 },
-  { id: 27, codigo: 361, nome: 'AGRIÃO', desconto: 3.30 },
-  { id: 28, codigo: 236941, nome: 'ALFACE AMERICANA', desconto: 3.20 },
-  { id: 29, codigo: 362, nome: 'ALFACE CRESPA', desconto: 3.20 },
-  { id: 30, codigo: 265691, nome: 'BERINJELA', desconto: 3.20 },
-  { id: 31, codigo: 371, nome: 'BETERRABA', desconto: 10.20 },
-  { id: 32, codigo: 221161, nome: 'CARÁ', desconto: 6.20 },
-  { id: 33, codigo: 203412, nome: 'MAMÃO HAVAI/PAPAYA', desconto: 10.10 },
-  { id: 34, codigo: 93945, nome: 'MORANGO', desconto: 10.20 },
-  { id: 35, codigo: 98800, nome: 'REPOLHO VERDE', desconto: 10.00 },
-  { id: 36, codigo: 90933, nome: 'REPOLHO ROXO', desconto: 10.00 },
-  { id: 37, codigo: 413, nome: 'RÚCULA', desconto: 8.60 },
-  { id: 38, codigo: 416, nome: 'TOMATE LONGA VIDA', desconto: 15.00 },
-];
+import { useRouter } from 'next/navigation';
 
 const SENHA_SISTEMA = 'caps3maringa';
 
-// ==================== TIPOS ====================
-interface ItemNota {
-  id: string;
-  produtoId: number;
-  produtoNome: string;
-  desconto: number;
-  kgCaixa: number;
-  valorCaixa: number;
-  precoUnitarioSemDesconto: number;
-  precoUnitarioComDesconto: number;
-  quantidadeStr: string;
-  quantidade: number;
-  totalSemDesconto: number;
-  total: number;
-}
-
-interface NotaFiscal {
-  id: string;
-  empresa: string;
-  empenho: string;
-  data: string;
-  dataTabelaCeasa: string;
-  itens: ItemNota[];
-  totalGeral: number;
-}
-
-// ==================== UTILITÁRIOS ====================
-const formatarMoeda = (valor: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
-};
-
-const formatarDataBrasil = (date: Date) => {
-  const dia = date.getUTCDate().toString().padStart(2, '0');
-  const mes = (date.getUTCMonth() + 1).toString().padStart(2, '0');
-  const ano = date.getUTCFullYear();
-  return `${dia}/${mes}/${ano}`;
-};
-
-const calcularPrecoComDesconto = (precoUnitario: number, descontoPercentual: number) => {
-  const valorDesconto = precoUnitario * (descontoPercentual / 100);
-  return Math.round((precoUnitario - valorDesconto) * 100) / 100;
-};
-
-// ==================== ESTILOS PDF PREMIUM ====================
-const pdfStyles = StyleSheet.create({
-  page: {
-    padding: 40,
-    fontSize: 10,
-    fontFamily: 'Helvetica',
-    backgroundColor: '#ffffff',
-  },
-  
-  headerInstitucional: {
-    marginBottom: 25,
-    borderBottomWidth: 2,
-    borderBottomColor: '#166534',
-    paddingBottom: 15,
-  },
-  prefeituraLabel: {
-    fontSize: 9,
-    color: '#6b7280',
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  tituloPrincipal: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#166534',
-    marginBottom: 4,
-  },
-  subtitulo: {
-    fontSize: 10,
-    color: '#6b7280',
-  },
-  
-  infoGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 25,
-    padding: 15,
-    backgroundColor: '#f8fafc',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  infoCard: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 8,
-    color: '#64748b',
-    textTransform: 'uppercase',
-    fontWeight: 'bold',
-    marginBottom: 4,
-    letterSpacing: 0.5,
-  },
-  infoValue: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#1e293b',
-  },
-  
-  protocoloBox: {
-    marginBottom: 25,
-    padding: 10,
-    backgroundColor: '#f0fdf4',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-    alignItems: 'center',
-  },
-  protocoloLabel: {
-    fontSize: 8,
-    color: '#166534',
-    textTransform: 'uppercase',
-    fontWeight: 'bold',
-  },
-  protocoloValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#166534',
-    fontFamily: 'Helvetica-Bold',
-  },
-  
-  tabelaInfoBox: {
-    marginBottom: 20,
-    padding: 8,
-    backgroundColor: '#fef3c7',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#fde68a',
-    alignItems: 'center',
-  },
-  tabelaInfoText: {
-    fontSize: 9,
-    color: '#92400e',
-  },
-  tabelaInfoBold: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#92400e',
-  },
-  
-  table: {
-    marginTop: 10,
-    marginBottom: 25,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#166534',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderTopLeftRadius: 6,
-    borderTopRightRadius: 6,
-  },
-  tableHeaderText: {
-    color: 'white',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  tableRowAlt: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    backgroundColor: '#f9fafb',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  
-  colProduto: { width: '22%' },
-  colKg: { width: '8%', textAlign: 'center' },
-  colValorCx: { width: '10%', textAlign: 'right' },
-  colPrecoBase: { width: '10%', textAlign: 'right' },
-  colDesconto: { width: '8%', textAlign: 'center' },
-  colPrecoFinal: { width: '10%', textAlign: 'right' },
-  colQuantidade: { width: '10%', textAlign: 'center' },
-  colTotalSemDesc: { width: '10%', textAlign: 'right' },
-  colTotal: { width: '12%', textAlign: 'right' },
-  
-  totalBox: {
-    marginTop: 20,
-    padding: 20,
-    backgroundColor: '#166534',
-    borderRadius: 10,
-    alignItems: 'flex-end',
-  },
-  totalLabel: {
-    color: '#bbf7d0',
-    fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 5,
-  },
-  totalValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  
-  footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 40,
-    right: 40,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 8,
-    color: '#9ca3af',
-    marginBottom: 2,
-  },
-  footerProtocolo: {
-    fontSize: 8,
-    color: '#166534',
-    fontWeight: 'bold',
-    marginTop: 4,
-  },
-});
-
-// ==================== COMPONENTE PDF PREMIUM ====================
-const NotaFiscalPDF = ({ nota }: { nota: NotaFiscal }) => (
-  <Document>
-    <Page size="A4" style={pdfStyles.page}>
-      
-      <View style={pdfStyles.headerInstitucional}>
-        <Text style={pdfStyles.prefeituraLabel}>
-          PREFEITURA DE MARINGÁ • SECRETARIA DE SAÚDE
-        </Text>
-        <Text style={pdfStyles.tituloPrincipal}>
-          NOTA DE CONFERÊNCIA
-        </Text>
-        <Text style={pdfStyles.subtitulo}>
-          Sistema Oficial de Conferência de Hortifrúti - CAPS 3
-        </Text>
-      </View>
-
-      <View style={pdfStyles.infoGrid}>
-        <View style={pdfStyles.infoCard}>
-          <Text style={pdfStyles.infoLabel}>Empresa Fornecedora</Text>
-          <Text style={pdfStyles.infoValue}>{nota.empresa}</Text>
-        </View>
-        <View style={pdfStyles.infoCard}>
-          <Text style={pdfStyles.infoLabel}>Empenho / Nota Fiscal</Text>
-          <Text style={pdfStyles.infoValue}>{nota.empenho}</Text>
-        </View>
-        <View style={pdfStyles.infoCard}>
-          <Text style={pdfStyles.infoLabel}>Data da Conferência</Text>
-          <Text style={pdfStyles.infoValue}>{nota.data}</Text>
-        </View>
-      </View>
-
-      <View style={pdfStyles.tabelaInfoBox}>
-        <Text style={pdfStyles.tabelaInfoText}>
-          📊 Tabela de Preços Ceasa utilizada nesta conferência:{' '}
-          <Text style={pdfStyles.tabelaInfoBold}>{nota.dataTabelaCeasa}</Text>
-        </Text>
-      </View>
-
-      <View style={pdfStyles.protocoloBox}>
-        <Text style={pdfStyles.protocoloLabel}>Protocolo de Conferência</Text>
-        <Text style={pdfStyles.protocoloValue}>CAPS-3-{nota.id.slice(-8)}</Text>
-      </View>
-
-      <View style={pdfStyles.table}>
-        <View style={pdfStyles.tableHeader}>
-          <Text style={[pdfStyles.tableHeaderText, pdfStyles.colProduto]}>PRODUTO</Text>
-          <Text style={[pdfStyles.tableHeaderText, pdfStyles.colKg]}>KG/CX</Text>
-          <Text style={[pdfStyles.tableHeaderText, pdfStyles.colValorCx]}>VALOR CX</Text>
-          <Text style={[pdfStyles.tableHeaderText, pdfStyles.colPrecoBase]}>PREÇO BASE</Text>
-          <Text style={[pdfStyles.tableHeaderText, pdfStyles.colDesconto]}>DESC.</Text>
-          <Text style={[pdfStyles.tableHeaderText, pdfStyles.colPrecoFinal]}>PREÇO FINAL</Text>
-          <Text style={[pdfStyles.tableHeaderText, pdfStyles.colQuantidade]}>QTD (KG)</Text>
-          <Text style={[pdfStyles.tableHeaderText, pdfStyles.colTotalSemDesc]}>TOTAL S/DESC</Text>
-          <Text style={[pdfStyles.tableHeaderText, pdfStyles.colTotal]}>TOTAL FINAL</Text>
-        </View>
-        
-        {nota.itens.map((item, idx) => (
-          <View style={idx % 2 === 0 ? pdfStyles.tableRow : pdfStyles.tableRowAlt} key={idx}>
-            <Text style={pdfStyles.colProduto}>{item.produtoNome}</Text>
-            <Text style={pdfStyles.colKg}>{item.kgCaixa}kg</Text>
-            <Text style={pdfStyles.colValorCx}>{formatarMoeda(item.valorCaixa)}</Text>
-            <Text style={pdfStyles.colPrecoBase}>{formatarMoeda(item.precoUnitarioSemDesconto)}</Text>
-            <Text style={pdfStyles.colDesconto}>-{item.desconto}%</Text>
-            <Text style={pdfStyles.colPrecoFinal}>{formatarMoeda(item.precoUnitarioComDesconto)}</Text>
-            <Text style={pdfStyles.colQuantidade}>{item.quantidade}kg</Text>
-            <Text style={pdfStyles.colTotalSemDesc}>{formatarMoeda(item.totalSemDesconto)}</Text>
-            <Text style={pdfStyles.colTotal}>{formatarMoeda(item.total)}</Text>
-          </View>
-        ))}
-      </View>
-
-      <View style={pdfStyles.totalBox}>
-        <Text style={pdfStyles.totalLabel}>VALOR TOTAL A PAGAR</Text>
-        <Text style={pdfStyles.totalValue}>{formatarMoeda(nota.totalGeral)}</Text>
-      </View>
-
-      <View style={pdfStyles.footer}>
-        <Text style={pdfStyles.footerText}>
-          Documento emitido eletronicamente pelo Sistema de Conferência CAPS 3
-        </Text>
-        <Text style={pdfStyles.footerText}>
-          Conferência baseada na tabela Ceasa do dia {nota.dataTabelaCeasa}
-        </Text>
-        <Text style={pdfStyles.footerProtocolo}>
-          Protocolo: CAPS-3-{nota.id.slice(-8)} • Emitido em: {new Date().toLocaleString('pt-BR')}
-        </Text>
-      </View>
-      
-    </Page>
-  </Document>
-);
-
-// ==================== COMPONENTE TOAST ====================
+// ==================== COMPONENTE TOAST PREMIUM ====================
 const Toast = ({ message, type, onClose }: { message: string; type: string; onClose: () => void }) => {
-  const colors = {
-    success: 'bg-green-500',
-    error: 'bg-red-500',
-    info: 'bg-blue-500'
-  };
+  const isSuccess = type === 'success';
   
-  useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
-    return () => clearTimeout(timer);
+  useEffect(() => { 
+    const timer = setTimeout(onClose, 3000); 
+    return () => clearTimeout(timer); 
   }, [onClose]);
   
   return (
-    <div className={`fixed bottom-4 right-4 z-50 ${colors[type as keyof typeof colors]} text-white px-6 py-3 rounded-lg shadow-lg animate-fade-in`}>
-      {message}
-    </div>
-  );
-};
-
-// ==================== COMPONENTE MODAL PDF ====================
-const PDFModal = ({ nota, onClose }: { nota: NotaFiscal | null; onClose: () => void }) => {
-  if (!nota) return null;
-  
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
-        <div className="flex justify-between items-center p-5 border-b bg-gray-50 rounded-t-2xl">
-          <h2 className="text-xl font-bold text-gray-800">Visualizar Nota Fiscal</h2>
-          <button onClick={onClose} className="bg-gray-600 hover:bg-gray-700 text-white px-5 py-2 rounded-xl transition">
-            Fechar
-          </button>
-        </div>
-        <div className="flex-1">
-          <PDFViewer width="100%" height="100%">
-            <NotaFiscalPDF nota={nota} />
-          </PDFViewer>
-        </div>
-      </div>
+    <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.2)] backdrop-blur-xl border animate-fade-in transition-all duration-300 transform translate-y-0 ${isSuccess ? 'bg-emerald-500/90 border-emerald-400/50' : 'bg-rose-500/90 border-rose-400/50'} text-white`}>
+      <span className="text-xl drop-shadow-md">{isSuccess ? '✨' : '⚠️'}</span>
+      <p className="font-bold tracking-wide text-sm drop-shadow-md">{message}</p>
     </div>
   );
 };
 
 // ==================== COMPONENTE PRINCIPAL ====================
-export default function Home() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+export default function LandingPage() {
+  const router = useRouter();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
-  
-  const [bancoNotas, setBancoNotas] = useState<NotaFiscal[]>([]);
-  const [notaAtual, setNotaAtual] = useState<NotaFiscal | null>(null);
-  
-  const [formEmpresa, setFormEmpresa] = useState('');
-  const [formEmpenho, setFormEmpenho] = useState('');
-  
-  const [formDataTabela, setFormDataTabela] = useState(() => {
-    const hoje = new Date();
-    const dia = hoje.getUTCDate().toString().padStart(2, '0');
-    const mes = (hoje.getUTCMonth() + 1).toString().padStart(2, '0');
-    const ano = hoje.getUTCFullYear();
-    return `${dia}/${mes}/${ano}`;
-  });
-  
-  const [itensCeasa, setItensCeasa] = useState<ItemNota[]>([]);
-  
-  const [setupProdutoId, setSetupProdutoId] = useState('');
-  const [setupKgCaixa, setSetupKgCaixa] = useState('');
-  const [setupValorCaixa, setSetupValorCaixa] = useState('');
-  
-  const [notaParaVisualizar, setNotaParaVisualizar] = useState<NotaFiscal | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+
+  const showToast = (message: string, type: string) => setToast({ message, type });
 
   useEffect(() => {
     const authStatus = localStorage.getItem('auth_hortifruti');
-    if (authStatus === 'true') setIsAuthenticated(true);
-    const notasSalvas = localStorage.getItem('banco_notas_hortifruti');
-    if (notasSalvas) setBancoNotas(JSON.parse(notasSalvas));
-    const notaEmAndamento = localStorage.getItem('nota_atual_hortifruti');
-    if (notaEmAndamento) setNotaAtual(JSON.parse(notaEmAndamento));
-    setIsLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('banco_notas_hortifruti', JSON.stringify(bancoNotas));
-      localStorage.setItem('nota_atual_hortifruti', JSON.stringify(notaAtual));
+    if (authStatus === 'true') {
+      router.push('/dashboard/cadastro');
+    } else {
+      setIsLoaded(true);
     }
-  }, [bancoNotas, notaAtual, isLoaded]);
+  }, [router]);
 
-  const showToast = (message: string, type: string) => {
-    setToast({ message, type });
-  };
-
-  const handleAddSetupCeasa = (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const produto = PRODUTOS_CONTRATO.find(p => p.id.toString() === setupProdutoId);
-    const kg = parseFloat(setupKgCaixa.replace(',', '.'));
-    const valor = parseFloat(setupValorCaixa.replace(',', '.'));
-
-    if (!produto || !kg || !valor) {
-      showToast('Preencha todos os campos corretamente', 'error');
-      return;
+    if (password === SENHA_SISTEMA) {
+      setIsLoading(true);
+      localStorage.setItem('auth_hortifruti', 'true');
+      showToast('Acesso liberado. Iniciando painel...', 'success');
+      
+      setTimeout(() => {
+        router.push('/dashboard/cadastro');
+      }, 1500);
+      
+    } else {
+      setError('Credenciais inválidas. Tente novamente.');
+      showToast('Falha na autenticação', 'error');
+      setPassword('');
     }
-
-    const precoSemDesconto = valor / kg;
-    const precoFinalArredondado = calcularPrecoComDesconto(precoSemDesconto, produto.desconto);
-
-    const novoItem: ItemNota = {
-      id: Date.now().toString(),
-      produtoId: produto.id,
-      produtoNome: produto.nome,
-      desconto: produto.desconto,
-      kgCaixa: kg,
-      valorCaixa: valor,
-      precoUnitarioSemDesconto: precoSemDesconto,
-      precoUnitarioComDesconto: precoFinalArredondado,
-      quantidadeStr: '',
-      quantidade: 0,
-      totalSemDesconto: 0,
-      total: 0
-    };
-
-    setItensCeasa([...itensCeasa, novoItem]);
-    setSetupProdutoId('');
-    setSetupKgCaixa('');
-    setSetupValorCaixa('');
-    showToast(`${produto.nome} adicionado com sucesso!`, 'success');
-  };
-
-  const removerItemSetup = (id: string) => {
-    setItensCeasa(itensCeasa.filter(i => i.id !== id));
-    showToast('Item removido', 'info');
-  };
-
-  const iniciarDigitacaoDaNota = () => {
-    if (!formEmpresa || !formEmpenho || itensCeasa.length === 0) {
-      showToast('Preencha Empresa, Empenho e adicione pelo menos 1 item!', 'error');
-      return;
-    }
-
-    if (!formDataTabela) {
-      showToast('Selecione a data da tabela Ceasa utilizada!', 'error');
-      return;
-    }
-
-    const novaNota: NotaFiscal = {
-      id: Date.now().toString(),
-      empresa: formEmpresa,
-      empenho: formEmpenho,
-      data: formatarDataBrasil(new Date()),
-      dataTabelaCeasa: formDataTabela,
-      itens: itensCeasa,
-      totalGeral: 0
-    };
-
-    setNotaAtual(novaNota);
-    setFormEmpresa('');
-    setFormEmpenho('');
-    
-    const hoje = new Date();
-    const dia = hoje.getUTCDate().toString().padStart(2, '0');
-    const mes = (hoje.getUTCMonth() + 1).toString().padStart(2, '0');
-    const ano = hoje.getUTCFullYear();
-    setFormDataTabela(`${dia}/${mes}/${ano}`);
-    
-    setItensCeasa([]);
-    showToast(`Nota criada! Tabela Ceasa de ${formDataTabela}`, 'success');
-  };
-
-  const handleQuantidadeChange = (id: string, qtdStr: string) => {
-    if (!notaAtual) return;
-    
-    const qtdNumerica = parseFloat(qtdStr.replace(',', '.')) || 0;
-
-    const novosItens = notaAtual.itens.map(item => {
-      if (item.id === id) {
-        return {
-          ...item,
-          quantidadeStr: qtdStr,
-          quantidade: qtdNumerica,
-          totalSemDesconto: qtdNumerica * item.precoUnitarioSemDesconto,
-          total: qtdNumerica * item.precoUnitarioComDesconto
-        };
-      }
-      return item;
-    });
-
-    const novoTotalGeral = novosItens.reduce((acc, item) => acc + item.total, 0);
-
-    setNotaAtual({
-      ...notaAtual,
-      itens: novosItens,
-      totalGeral: novoTotalGeral
-    });
-  };
-
-  const finalizarNota = () => {
-    if (!notaAtual) return;
-    setBancoNotas([notaAtual, ...bancoNotas]);
-    setNotaAtual(null);
-    showToast('Nota finalizada com sucesso!', 'success');
-  };
-
-  const excluirNotaBanco = (id: string) => {
-    if (confirm('Tem certeza que deseja apagar esta nota?')) {
-      setBancoNotas(bancoNotas.filter(nota => nota.id !== id));
-      showToast('Nota excluída', 'info');
-    }
-  };
-
-  const cancelarNota = () => {
-    setNotaAtual(null);
-    showToast('Digitação cancelada', 'info');
   };
 
   if (!isLoaded) {
-    return <div className="min-h-screen bg-gray-50 flex items-center justify-center">Carregando...</div>;
-  }
-
-  if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <span className="text-3xl text-white">🍎</span>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-800">CAPS 3</h1>
-            <p className="text-gray-500 text-sm">Sistema de Conferência de Hortifrúti</p>
-          </div>
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            if (password === SENHA_SISTEMA) {
-              localStorage.setItem('auth_hortifruti', 'true');
-              setIsAuthenticated(true);
-              showToast('Login realizado!', 'success');
-            } else {
-              setError('Senha incorreta.');
-              showToast('Senha incorreta', 'error');
-            }
-          }} className="space-y-5">
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-green-500 transition-all"
-              placeholder="Digite a senha..."
-              autoFocus
-            />
-            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <button type="submit" className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg">
-              Entrar no Sistema
-            </button>
-          </form>
-        </div>
+      <div className="min-h-screen bg-[#0f172a] flex flex-col items-center justify-center gap-4">
+        <div className="w-12 h-12 border-4 border-emerald-900 border-t-emerald-500 rounded-full animate-spin shadow-[0_0_15px_rgba(16,185,129,0.5)]"></div>
+        <p className="text-emerald-500 font-bold text-sm tracking-widest animate-pulse uppercase">Conectando...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-green-900 to-green-700 text-white shadow-lg sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                <span className="text-xl font-bold">CAPS</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">Conferência de Notas</h1>
-                <p className="text-sm text-green-200">Prefeitura de Maringá - CAPS 3</p>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                localStorage.removeItem('auth_hortifruti');
-                setIsAuthenticated(false);
-              }}
-              className="bg-green-800 hover:bg-green-900 px-4 py-2 rounded-lg transition-all"
-            >
-              Sair
-            </button>
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden font-sans selection:bg-emerald-500 selection:text-white">
+      
+      {/* ===== CSS INJETADO PARA AS NOVAS ANIMAÇÕES ===== */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-8px) rotate(2deg); }
+        }
+        @keyframes shine {
+          100% { left: 125%; }
+        }
+        @keyframes spin-slow {
+          100% { transform: rotate(360deg); }
+        }
+        .animate-float { animation: float 4s ease-in-out infinite; }
+        .animate-spin-slow { animation: spin-slow 12s linear infinite; }
+      `}} />
+
+      {/* ===== BACKGROUND: IMAGEM REAL PREMIUM + OVERLAY ===== */}
+      <div className="absolute inset-0 z-0 bg-slate-900">
+        <img 
+          src="https://images.unsplash.com/photo-1610832958506-aa56368176cf?q=80&w=2070&auto=format&fit=crop" 
+          alt="Hortifrúti Background" 
+          className="w-full h-full object-cover opacity-50 scale-105 animate-[pulse_20s_ease-in-out_infinite_alternate]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/90 via-slate-900/80 to-slate-900/95 backdrop-blur-[3px]"></div>
+      </div>
+
+      {/* ===== HEADER RESPONSIVO ===== */}
+      <div className="absolute top-0 w-full p-6 md:p-8 flex justify-between items-center z-20">
+        <div className="flex items-center gap-4 group cursor-pointer">
+          <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg border border-white/20 group-hover:bg-white/20 transition-all duration-300">
+            <img src="/favicon.ico" alt="Logo" className="w-7 h-7 object-contain filter drop-shadow-lg" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-white font-black tracking-widest text-sm drop-shadow-md">MARINGÁ</span>
+            <span className="text-emerald-400 font-bold text-xs hidden md:block drop-shadow-md">SEC. DE SAÚDE • CAPS 3</span>
           </div>
         </div>
-      </header>
+        <div className="bg-black/40 backdrop-blur-md border border-white/10 px-5 py-2 rounded-full text-xs font-bold text-emerald-400 shadow-xl flex items-center gap-3">
+          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping absolute"></div>
+          <div className="w-2 h-2 bg-emerald-500 rounded-full relative shadow-[0_0_8px_rgba(52,211,153,1)]"></div>
+          SISTEMA ATIVO
+        </div>
+      </div>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-        {!notaAtual ? (
-          <>
-            {/* Tela de Setup */}
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-5 border-b border-green-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold">
-                    1
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-green-800">Criar Nova Conferência</h2>
-                    <p className="text-sm text-gray-600">Preencha os dados da nota e adicione os produtos</p>
-                  </div>
+      {/* ===== CARD PREMIUM (SUPER VIVO) ===== */}
+      <div className="relative z-10 w-full max-w-[440px] mx-4">
+        
+        {/* Glow Brilhante atrás do Card */}
+        <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-lime-400 rounded-[2.8rem] blur-xl opacity-30 animate-pulse"></div>
+
+        {/* O Card em si */}
+        <div className="relative p-8 md:p-10 bg-white/85 backdrop-blur-3xl rounded-[2.5rem] border-t-2 border-l-2 border-t-white border-l-white border-b border-r border-b-white/40 border-r-white/40 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)] overflow-hidden transition-all duration-500">
+          
+          {/* Luzes dinâmicas rotativas DENTRO do card */}
+          <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] pointer-events-none animate-spin-slow opacity-40">
+            <div className="absolute top-[20%] left-[20%] w-64 h-64 bg-emerald-300 rounded-full mix-blend-multiply blur-[80px]"></div>
+            <div className="absolute bottom-[20%] right-[20%] w-64 h-64 bg-teal-200 rounded-full mix-blend-multiply blur-[80px]"></div>
+          </div>
+
+          {/* Ícone Personalizado (Favicon) - Agora Flutuante! */}
+          <div className="relative w-28 h-28 mx-auto mb-8 animate-float">
+            <div className="absolute inset-0 bg-emerald-400 rounded-full blur-2xl opacity-40"></div>
+            <div className="relative flex items-center justify-center w-full h-full bg-gradient-to-br from-white/90 to-white/40 backdrop-blur-xl rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-white group">
+              <img 
+                src="/favicon.ico" 
+                alt="Logo do Sistema" 
+                className="w-14 h-14 object-contain filter drop-shadow-xl transition-transform duration-500 group-hover:scale-110"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = '<span class="text-5xl">📦</span>';
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Textos */}
+          <div className="relative text-center mb-10 z-10">
+            <h1 className="text-3xl font-black text-slate-800 mb-2 tracking-tight">Painel CAPS 3</h1>
+            <p className="text-slate-500 text-sm font-semibold px-2 leading-relaxed">
+              Autenticação segura para gestão de hortifrúti.
+            </p>
+          </div>
+
+          {/* Formulário */}
+          <form onSubmit={handleLogin} className="relative space-y-6 z-10">
+            <div className="space-y-2">
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                  <span className="text-slate-400 group-focus-within:text-emerald-600 transition-colors text-lg">🔑</span>
                 </div>
+                <input 
+                  type="password" 
+                  value={password} 
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError('');
+                  }} 
+                  className={`w-full bg-white/70 backdrop-blur-md border-2 ${error ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/30' : 'border-white/80 focus:border-emerald-500 focus:ring-emerald-500/30'} rounded-2xl pl-14 pr-5 py-4 text-slate-800 font-black tracking-widest placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-4 transition-all duration-300 shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)]`}
+                  placeholder="DIGITE A SENHA..." 
+                  autoFocus 
+                  disabled={isLoading}
+                />
               </div>
+              {error && (
+                <p className="text-rose-600 text-xs mt-2 ml-2 font-bold animate-fade-in flex items-center gap-1.5">
+                  <span className="bg-rose-100 text-rose-600 rounded-full w-4 h-4 flex items-center justify-center">!</span>
+                  {error}
+                </p>
+              )}
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={!password || isLoading}
+              className="group relative w-full overflow-hidden flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 bg-[length:200%_auto] hover:bg-[position:right_center] text-white font-black py-4 rounded-2xl transition-all duration-500 shadow-[0_10px_20px_rgba(16,185,129,0.4)] hover:shadow-[0_15px_30px_rgba(16,185,129,0.5)] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none border border-emerald-400/50"
+            >
+              {/* Efeito de Reflexo de Luz passando pelo botão (Shine) */}
+              <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[30deg] group-hover:animate-[shine_1.5s_ease-in-out_infinite]"></div>
               
-              <div className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                      Empresa
-                    </label>
-                    <input
-                      type="text"
-                      value={formEmpresa}
-                      onChange={(e) => setFormEmpresa(e.target.value.toUpperCase())}
-                      placeholder="Ex: HORTIBRAS LTDA"
-                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-green-500 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                      Número do Empenho / Nota
-                    </label>
-                    <input
-                      type="text"
-                      value={formEmpenho}
-                      onChange={(e) => setFormEmpenho(e.target.value.toUpperCase())}
-                      placeholder="Ex: 1234/2026"
-                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-green-500 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                      📅 Data da Tabela Ceasa
-                    </label>
-                    <input
-                      type="date"
-                      value={(() => {
-                        if (!formDataTabela) return '';
-                        const partes = formDataTabela.split('/');
-                        if (partes.length === 3) {
-                          return `${partes[2]}-${partes[1]}-${partes[0]}`;
-                        }
-                        return '';
-                      })()}
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          const [ano, mes, dia] = e.target.value.split('-');
-                          const dataUTC = new Date(Date.UTC(parseInt(ano), parseInt(mes) - 1, parseInt(dia)));
-                          const diaStr = dataUTC.getUTCDate().toString().padStart(2, '0');
-                          const mesStr = (dataUTC.getUTCMonth() + 1).toString().padStart(2, '0');
-                          const anoStr = dataUTC.getUTCFullYear();
-                          setFormDataTabela(`${diaStr}/${mesStr}/${anoStr}`);
-                        }
-                      }}
-                      className="w-full border-2 border-amber-300 bg-amber-50 rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 transition-all"
-                    />
-                    <p className="text-xs text-amber-600 mt-1">
-                      ⚠️ Data da tabela de preços utilizada
-                    </p>
-                  </div>
-                </div>
+              {isLoading ? (
+                <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : (
+                <>
+                  <span className="tracking-wide text-lg relative z-10 drop-shadow-md">ACESSAR SISTEMA</span>
+                  <span className="group-hover:translate-x-2 transition-transform duration-300 relative z-10 text-xl drop-shadow-md">➔</span>
+                </>
+              )}
+            </button>
+          </form>
 
-                <form onSubmit={handleAddSetupCeasa} className="bg-gray-50 rounded-xl p-5 border-2 border-dashed border-gray-200">
-                  <h3 className="font-bold text-gray-700 mb-4">➕ Adicionar Produto do Ceasa</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="md:col-span-2">
-                      <select
-                        value={setupProdutoId}
-                        onChange={(e) => setSetupProdutoId(e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-green-500"
-                      >
-                        <option value="">Selecione um produto...</option>
-                        {PRODUTOS_CONTRATO.map(p => (
-                          <option key={p.id} value={p.id}>
-                            {p.nome} ({p.desconto}% desconto)
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        value={setupKgCaixa}
-                        onChange={(e) => setSetupKgCaixa(e.target.value)}
-                        placeholder="KG por Caixa"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        value={setupValorCaixa}
-                        onChange={(e) => setSetupValorCaixa(e.target.value)}
-                        placeholder="Valor da Caixa (R$)"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                      />
-                    </div>
-                  </div>
-                  <button type="submit" className="mt-4 w-full md:w-auto bg-gray-800 hover:bg-black text-white font-bold py-2 px-6 rounded-lg transition-all">
-                    + Adicionar à Nota
-                  </button>
-                </form>
+          {/* Rodapé Interno */}
+          <div className="relative mt-8 pt-6 border-t border-slate-200/60 flex justify-center items-center gap-2 opacity-80 z-10">
+            <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <p className="text-xs text-slate-600 font-bold tracking-wider uppercase">
+              Conexão Criptografada
+            </p>
+          </div>
+        </div>
+      </div>
 
-                {itensCeasa.length > 0 && (
-                  <div className="border border-gray-200 rounded-xl overflow-hidden">
-                    <div className="bg-amber-50 p-2 text-center border-b border-amber-200">
-                      <span className="text-sm text-amber-700">
-                        📊 Produtos baseados na tabela Ceasa de {formDataTabela}
-                      </span>
-                    </div>
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="p-3">Produto</th>
-                          <th className="p-3 text-center">Caixa</th>
-                          <th className="p-3 text-right">Preço Final/kg</th>
-                          <th className="p-3 text-center">Ação</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {itensCeasa.map(item => (
-                          <tr key={item.id} className="border-t border-gray-100 hover:bg-gray-50">
-                            <td className="p-3 font-medium">{item.produtoNome}</td>
-                            <td className="p-3 text-center text-gray-500">
-                              {item.kgCaixa}kg / {formatarMoeda(item.valorCaixa)}
-                            </td>
-                            <td className="p-3 text-right font-bold text-green-700">
-                              {formatarMoeda(item.precoUnitarioComDesconto)}/kg
-                            </td>
-                            <td className="p-3 text-center">
-                              <button onClick={() => removerItemSetup(item.id)} className="text-red-500 hover:text-red-700">
-                                Remover
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                <button
-                  onClick={iniciarDigitacaoDaNota}
-                  disabled={itensCeasa.length === 0 || !formEmpresa || !formEmpenho}
-                  className={`w-full py-4 rounded-xl font-bold text-lg uppercase tracking-wide transition-all ${
-                    itensCeasa.length === 0 || !formEmpresa || !formEmpenho
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 text-white shadow-lg hover:shadow-xl'
-                  }`}
-                >
-                  🚀 Iniciar Digitação das Quantidades (Tabela: {formDataTabela})
-                </button>
-              </div>
-            </div>
-
-            {/* Lista de Notas Finalizadas */}
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-5 border-b border-gray-200">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
-                    📂
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-800">Notas Finalizadas</h2>
-                    <p className="text-sm text-gray-500">Histórico de conferências realizadas</p>
-                  </div>
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="p-4">Empresa</th>
-                      <th className="p-4">Empenho</th>
-                      <th className="p-4">Data Conf.</th>
-                      <th className="p-4">Tabela Ceasa</th>
-                      <th className="p-4 text-right">Valor Total</th>
-                      <th className="p-4 text-center">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {bancoNotas.map(nota => (
-                      <tr key={nota.id} className="border-t border-gray-100 hover:bg-gray-50">
-                        <td className="p-4 font-bold">{nota.empresa}</td>
-                        <td className="p-4 text-gray-600">{nota.empenho}</td>
-                        <td className="p-4 text-gray-500 text-sm">{nota.data}</td>
-                        <td className="p-4">
-                          <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-bold">
-                            📅 {nota.dataTabelaCeasa}
-                          </span>
-                        </td>
-                        <td className="p-4 text-right font-bold text-green-700">
-                          {formatarMoeda(nota.totalGeral)}
-                        </td>
-                        <td className="p-4 text-center space-x-2">
-                          <button
-                            onClick={() => setNotaParaVisualizar(nota)}
-                            className="bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1 rounded-lg"
-                          >
-                            👁️ Visualizar
-                          </button>
-                          <button
-                            onClick={() => excluirNotaBanco(nota.id)}
-                            className="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1 rounded-lg"
-                          >
-                            Excluir
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Tela de Digitação */}
-            <div className="space-y-6">
-              <div className="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-5 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                  <p className="text-xs text-green-400 uppercase">Passo 2: Digitação e Conferência</p>
-                  <h2 className="text-2xl font-bold">
-                    {notaAtual.empresa}
-                    <span className="text-gray-400 font-normal ml-3 text-lg">| Empenho: {notaAtual.empenho}</span>
-                  </h2>
-                  <p className="text-xs text-amber-300 mt-1">
-                    📊 Tabela Ceasa utilizada: {notaAtual.dataTabelaCeasa}
-                  </p>
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={cancelarNota} className="bg-gray-600 hover:bg-gray-700 px-6 py-3 rounded-xl">
-                    Cancelar
-                  </button>
-                  <button onClick={finalizarNota} className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg">
-                    💾 Salvar e Finalizar Nota
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left min-w-[1200px]">
-                    <thead className="bg-gray-50 border-b-2 border-gray-200">
-                      <tr>
-                        <th className="p-4">Produto</th>
-                        <th className="p-4 text-center">KG/Cx</th>
-                        <th className="p-4 text-right">Valor Cx</th>
-                        <th className="p-4 text-right">Preço Base</th>
-                        <th className="p-4 text-center">Desc.</th>
-                        <th className="p-4 text-right">Preço Final</th>
-                        <th className="p-4 text-center bg-green-50 text-green-800">Qtd. Entregue (KG)</th>
-                        <th className="p-4 text-right">Total S/Desc</th>
-                        <th className="p-4 text-right text-green-700">Total Final</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {notaAtual.itens.map((item) => (
-                        <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="p-4 font-bold">{item.produtoNome}</td>
-                          <td className="p-4 text-center text-gray-500">{item.kgCaixa} kg</td>
-                          <td className="p-4 text-right text-gray-500">{formatarMoeda(item.valorCaixa)}</td>
-                          <td className="p-4 text-right text-gray-400">{formatarMoeda(item.precoUnitarioSemDesconto)}</td>
-                          <td className="p-4 text-center text-red-500">-{item.desconto}%</td>
-                          <td className="p-4 text-right font-bold">{formatarMoeda(item.precoUnitarioComDesconto)}</td>
-                          <td className="p-4 bg-green-50/50">
-                            <input
-                              type="text"
-                              value={item.quantidadeStr}
-                              onChange={(e) => handleQuantidadeChange(item.id, e.target.value)}
-                              placeholder="0,00"
-                              className="w-full text-center font-bold text-lg border-2 border-green-400 rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                            />
-                          </td>
-                          <td className="p-4 text-right text-gray-400 line-through">
-                            {formatarMoeda(item.totalSemDesconto)}
-                          </td>
-                          <td className="p-4 text-right font-bold text-green-700 text-lg">
-                            {formatarMoeda(item.total)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100 flex justify-between items-center border-t-2 border-gray-200">
-                  <span className="text-gray-600 uppercase font-bold">Total Geral a Pagar:</span>
-                  <span className="text-4xl font-black text-green-700">{formatarMoeda(notaAtual.totalGeral)}</span>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </main>
-
-      <PDFModal nota={notaParaVisualizar} onClose={() => setNotaParaVisualizar(null)} />
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 }
