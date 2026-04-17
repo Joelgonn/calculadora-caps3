@@ -3,6 +3,29 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
+import { 
+  Plus, 
+  Save, 
+  X, 
+  Search, 
+  ChevronDown,
+  Building2,
+  FileText,
+  Calendar,
+  Package,
+  DollarSign,
+  Trash2,
+  CheckCircle,
+  AlertCircle,
+  Info,
+  ArrowRight,
+  Lock,
+  TrendingUp,
+  Box,
+  Tag,
+  Weight,
+  CreditCard
+} from 'lucide-react';
 
 // ==================== BANCO DE DADOS CEASA ====================
 const PRODUTOS_CONTRATO = [
@@ -131,20 +154,20 @@ const calcularPrecoComDesconto = (precoUnitario: number, descontoPercentual: num
   return Math.round((precoUnitario - valorDesconto) * 100) / 100;
 };
 
-// ==================== SELECTOR PERSONALIZADO CORRIGIDO ====================
+// ==================== SELECTOR PERSONALIZADO COM ÍCONES ====================
 interface PremiumSelectProps {
   value: string;
   onChange: (value: string) => void;
   options: Array<{ value: string; label: string; discount?: number }>;
   placeholder: string;
-  icon?: string;
+  icon?: React.ReactNode;
   disabled?: boolean;
 }
 
 const PremiumSelect = ({ value, onChange, options, placeholder, icon, disabled }: PremiumSelectProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0, position: 'bottom' as 'top' | 'bottom' });
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -155,49 +178,23 @@ const PremiumSelect = ({ value, onChange, options, placeholder, icon, disabled }
     opt.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  // Função para calcular a posição do dropdown (com flip automático)
   const updatePosition = () => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      const scrollY = window.scrollY;
-      const scrollX = window.scrollX;
-      const viewportHeight = window.innerHeight;
-      
-      // Calcula espaço disponível abaixo e acima
-      const spaceBelow = viewportHeight - rect.bottom;
-      const dropdownHeight = 320; // Altura aproximada do dropdown (max-h-64 = 256px + header)
-      
-      let position: 'top' | 'bottom' = 'bottom';
-      let top = rect.bottom + scrollY + 4;
-      
-      // Se não couber embaixo, abre para cima
-      if (spaceBelow < dropdownHeight && rect.top > dropdownHeight) {
-        position = 'top';
-        top = rect.top + scrollY - dropdownHeight - 4;
-      }
-      
       setDropdownPosition({
-        top: top,
-        left: rect.left + scrollX,
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX,
         width: rect.width,
-        position: position
       });
     }
   };
   
-  // Observadores de scroll e resize
   useEffect(() => {
     if (isOpen) {
       updatePosition();
-      
-      // Captura scroll em qualquer container (true = fase de captura)
-      const handleScroll = () => {
-        requestAnimationFrame(updatePosition);
-      };
-      
+      const handleScroll = () => requestAnimationFrame(updatePosition);
       window.addEventListener('scroll', handleScroll, true);
       window.addEventListener('resize', handleScroll);
-      
       return () => {
         window.removeEventListener('scroll', handleScroll, true);
         window.removeEventListener('resize', handleScroll);
@@ -205,38 +202,18 @@ const PremiumSelect = ({ value, onChange, options, placeholder, icon, disabled }
     }
   }, [isOpen]);
   
-  // Fecha ao clicar fora
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        buttonRef.current && 
-        !buttonRef.current.contains(event.target as Node) &&
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      if (buttonRef.current && !buttonRef.current.contains(event.target as Node) &&
+          dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
         setSearchTerm('');
       }
     };
-    
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
   
-  // Fecha ao pressionar ESC
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isOpen) {
-        setIsOpen(false);
-        setSearchTerm('');
-      }
-    };
-    
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen]);
-  
-  // Foco no input ao abrir
   useEffect(() => {
     if (isOpen && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -263,7 +240,7 @@ const PremiumSelect = ({ value, onChange, options, placeholder, icon, disabled }
         type="button"
         onClick={handleOpen}
         disabled={disabled}
-        className={`w-full bg-white border rounded-xl px-4 py-3 text-left transition-all shadow-sm flex items-center justify-between group ${
+        className={`w-full bg-white border rounded-lg px-3 py-2 text-left transition-all shadow-sm flex items-center justify-between group text-sm ${
           disabled 
             ? 'bg-slate-50 border-slate-200 cursor-not-allowed text-slate-400' 
             : isOpen 
@@ -272,7 +249,7 @@ const PremiumSelect = ({ value, onChange, options, placeholder, icon, disabled }
         }`}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          {icon && <span className="text-base flex-shrink-0">{icon}</span>}
+          {icon && <span className="flex-shrink-0 text-slate-400">{icon}</span>}
           <span className={`font-medium truncate ${selectedOption ? 'text-slate-700' : 'text-slate-400'}`}>
             {selectedOption ? selectedOption.label : placeholder}
           </span>
@@ -282,20 +259,13 @@ const PremiumSelect = ({ value, onChange, options, placeholder, icon, disabled }
             </span>
           )}
         </div>
-        <svg 
-          className={`w-4 h-4 text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} 
-          fill="none" 
-          viewBox="0 0 24 24" 
-          stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
       {isOpen && !disabled && typeof document !== 'undefined' && createPortal(
         <div 
           ref={dropdownRef}
-          className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+          className="fixed z-[9999] bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden"
           style={{
             top: dropdownPosition.top,
             left: dropdownPosition.left,
@@ -305,45 +275,35 @@ const PremiumSelect = ({ value, onChange, options, placeholder, icon, disabled }
         >
           <div className="p-2 border-b border-slate-100">
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 ref={inputRef}
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar produto..."
-                className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                placeholder="Buscar..."
+                className="w-full pl-8 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
           </div>
-          <div className="max-h-64 overflow-y-auto">
+          <div className="max-h-56 overflow-y-auto">
             {filteredOptions.length === 0 ? (
-              <div className="p-4 text-center text-slate-400 text-sm">
-                <span className="text-2xl block mb-1">🔍</span>
-                Nenhum produto encontrado
-              </div>
+              <div className="p-4 text-center text-slate-400 text-sm">Nenhum resultado</div>
             ) : (
               filteredOptions.map(option => (
                 <button
                   key={option.value}
                   type="button"
                   onClick={() => handleSelect(option.value)}
-                  className={`w-full px-4 py-2.5 text-left hover:bg-emerald-50 transition-colors flex items-center justify-between group ${
+                  className={`w-full px-3 py-2 text-left hover:bg-emerald-50 transition-colors flex items-center justify-between text-sm ${
                     value === option.value ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700'
                   }`}
                 >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="truncate">{option.label}</span>
-                    {option.discount && (
-                      <span className="bg-rose-100 text-rose-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
-                        -{option.discount}%
-                      </span>
-                    )}
-                  </div>
-                  {value === option.value && (
-                    <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
+                  <span className="truncate">{option.label}</span>
+                  {option.discount && (
+                    <span className="bg-rose-100 text-rose-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                      -{option.discount}%
+                    </span>
                   )}
                 </button>
               ))
@@ -356,16 +316,22 @@ const PremiumSelect = ({ value, onChange, options, placeholder, icon, disabled }
   );
 };
 
-// ==================== COMPONENTE TOAST PREMIUM ====================
+// ==================== TOAST ====================
 const Toast = ({ message, type, onClose }: { message: string; type: string; onClose: () => void }) => {
-  const isSuccess = type === 'success';
-  const isInfo = type === 'info';
   useEffect(() => { const timer = setTimeout(onClose, 3000); return () => clearTimeout(timer); }, [onClose]);
   
+  const config = {
+    success: { bg: 'bg-emerald-500', icon: <CheckCircle size={18} /> },
+    error: { bg: 'bg-red-500', icon: <AlertCircle size={18} /> },
+    info: { bg: 'bg-blue-500', icon: <Info size={18} /> }
+  };
+  
+  const current = config[type as keyof typeof config] || config.info;
+  
   return (
-    <div className={`fixed bottom-6 right-6 z-[10000] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-xl border border-white/20 transition-all duration-300 animate-[float_3s_ease-in-out_infinite] ${isSuccess ? 'bg-emerald-600/95' : isInfo ? 'bg-blue-600/95' : 'bg-rose-600/95'} text-white`}>
-      <span className="text-xl">{isSuccess ? '✨' : isInfo ? 'ℹ️' : '⚠️'}</span>
-      <p className="font-semibold tracking-wide text-sm">{message}</p>
+    <div className={`fixed bottom-4 right-4 z-[10000] flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg ${current.bg} text-white text-sm animate-in slide-in-from-right-5 duration-300`}>
+      {current.icon}
+      <span>{message}</span>
     </div>
   );
 };
@@ -380,10 +346,7 @@ export default function NovaConferenciaPage() {
   const [formEmpenho, setFormEmpenho] = useState('');
   const [formDataTabela, setFormDataTabela] = useState(() => {
     const hoje = new Date();
-    const dia = hoje.getUTCDate().toString().padStart(2, '0');
-    const mes = (hoje.getUTCMonth() + 1).toString().padStart(2, '0');
-    const ano = hoje.getUTCFullYear();
-    return `${dia}/${mes}/${ano}`;
+    return formatarDataBrasil(hoje);
   });
   
   const [itensCeasa, setItensCeasa] = useState<ItemNota[]>([]);
@@ -449,17 +412,17 @@ export default function NovaConferenciaPage() {
     setSetupProdutoId('');
     setSetupKgCaixa('');
     setSetupValorCaixa('');
-    showToast(`${nomeCompleto} adicionado com sucesso!`, 'success');
+    showToast(`${nomeCompleto} adicionado!`, 'success');
   };
 
   const removerItemSetup = (id: string) => {
     setItensCeasa(itensCeasa.filter(i => i.id !== id));
-    showToast('Item removido da lista', 'info');
+    showToast('Item removido', 'info');
   };
 
   const iniciarDigitacaoDaNota = () => {
     if (!formEmpresa || !formEmpenho || itensCeasa.length === 0) {
-      showToast('Preencha Empresa, Empenho e adicione ao menos 1 item.', 'error');
+      showToast('Preencha todos os dados e adicione ao menos 1 item.', 'error');
       return;
     }
 
@@ -477,7 +440,7 @@ export default function NovaConferenciaPage() {
     setFormEmpresa('');
     setFormEmpenho('');
     setItensCeasa([]);
-    showToast(`Nota criada com sucesso!`, 'success');
+    showToast(`Nota criada!`, 'success');
   };
 
   const handleQuantidadeChange = (id: string, qtdStr: string) => {
@@ -516,318 +479,295 @@ export default function NovaConferenciaPage() {
   };
 
   const cancelarNota = () => {
-    if (confirm("Deseja realmente cancelar? Todos os dados preenchidos serão perdidos.")) {
+    if (confirm("Cancelar conferência? Todos os dados serão perdidos.")) {
       setNotaAtual(null);
       localStorage.removeItem('nota_atual_hortifruti');
       showToast('Conferência cancelada', 'info');
     }
   };
 
-  if (!isLoaded) return <div className="flex items-center justify-center py-20 text-emerald-600 font-bold animate-pulse">Carregando módulo de conferência...</div>;
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-2 border-emerald-200 border-t-emerald-500 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30">
-      {/* Header Tipo Fichário com Abas Laterais */}
-      <div className="relative">
-        {/* Efeito de sombra do fichário */}
-        <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-slate-200/50 to-transparent pointer-events-none"></div>
-        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-slate-200/50 to-transparent pointer-events-none"></div>
-        
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-          <div className="bg-white rounded-t-3xl shadow-xl border border-slate-100 overflow-hidden">                       
-            <div className="p-6 md:p-8 space-y-6 md:space-y-8">
-              <style dangerouslySetInnerHTML={{__html: `
-                @keyframes float {
-                  0%, 100% { transform: translateY(0px); }
-                  50% { transform: translateY(-5px); }
-                }
-                @keyframes slide-in-left {
-                  from { opacity: 0; transform: translateX(-20px); }
-                  to { opacity: 1; transform: translateX(0); }
-                }
-                @keyframes slide-in-right {
-                  from { opacity: 0; transform: translateX(20px); }
-                  to { opacity: 1; transform: translateX(0); }
-                }
-                @keyframes fade-in {
-                  from { opacity: 0; transform: scale(0.95); }
-                  to { opacity: 1; transform: scale(1); }
-                }
-                .animate-slide-in-left { animation: slide-in-left 0.3s ease-out; }
-                .animate-slide-in-right { animation: slide-in-right 0.3s ease-out; }
-                .animate-fade-in { animation: fade-in 0.2s ease-out; }
-              `}} />
-
-              {!notaAtual ? (
-                <>
-                  {/* PASSO 1: DADOS GERAIS */}
-                  <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                    <div className="bg-gradient-to-r from-emerald-500/10 to-transparent p-4 border-b border-emerald-100/50">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-black shadow-md">1</div>
-                        <div>
-                          <h2 className="font-black text-slate-800 tracking-tight">Setup da Conferência</h2>
-                          <p className="text-xs text-slate-500">Dados fiscais e referência Ceasa</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-1">
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">🏢 Empresa Fornecedora</label>
-                        <input 
-                          type="text" 
-                          value={formEmpresa} 
-                          onChange={(e) => setFormEmpresa(e.target.value.toUpperCase())} 
-                          placeholder="Digite o nome da empresa" 
-                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-700 font-bold placeholder:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" 
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">📄 Empenho / Número NF</label>
-                        <input 
-                          type="text" 
-                          value={formEmpenho} 
-                          onChange={(e) => setFormEmpenho(e.target.value.toUpperCase())} 
-                          placeholder="Digite o empenho ou número da NF" 
-                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-700 font-bold placeholder:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" 
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="block text-[10px] font-black text-emerald-600 uppercase tracking-wider">📅 Data Tabela Ceasa</label>
-                        <input 
-                          type="date" 
-                          value={(() => {
-                            if (!formDataTabela) return '';
-                            const partes = formDataTabela.split('/');
-                            if (partes.length === 3) return `${partes[2]}-${partes[1]}-${partes[0]}`;
-                            return '';
-                          })()}
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              const [ano, mes, dia] = e.target.value.split('-');
-                              const dataUTC = new Date(Date.UTC(parseInt(ano), parseInt(mes) - 1, parseInt(dia)));
-                              setFormDataTabela(`${dataUTC.getUTCDate().toString().padStart(2, '0')}/${(dataUTC.getUTCMonth() + 1).toString().padStart(2, '0')}/${dataUTC.getUTCFullYear()}`);
-                            }
-                          }}
-                          className="w-full bg-emerald-50/30 border border-emerald-200 rounded-xl px-4 py-3 text-emerald-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all cursor-pointer"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* PASSO 2: PRODUTOS - Com dropdown corrigido */}
-                  <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl border border-slate-200 overflow-visible shadow-sm">
-                    <div className="bg-gradient-to-r from-slate-800/5 to-transparent p-4 border-b border-slate-200">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center text-white font-black shadow-md">2</div>
-                        <div>
-                          <h2 className="font-black text-slate-800 tracking-tight">Montar Carga Ceasa</h2>
-                          <p className="text-xs text-slate-500">Adicione produtos com os valores da cotação</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-5">
-                      {/* Formulário Horizontal */}
-                      <form onSubmit={handleAddSetupCeasa} className="flex flex-wrap items-end gap-3">
-                        <div className="flex-1 min-w-[180px]">
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">📦 Categoria</label>
-                          <PremiumSelect
-                            value={setupCategoria}
-                            onChange={setSetupCategoria}
-                            options={categoriasDisponiveis.map(cat => ({ value: cat, label: cat }))}
-                            placeholder="Selecione a categoria..."
-                            icon="🥬"
-                          />
-                        </div>
-                        
-                        <div className="flex-1 min-w-[200px]">
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">🏷️ Tipo do item</label>
-                          <PremiumSelect
-                            value={setupProdutoId}
-                            onChange={setSetupProdutoId}
-                            options={subtiposDisponiveis}
-                            placeholder={setupCategoria ? "Selecione o tipo..." : "Escolha a categoria primeiro"}
-                            icon="🍎"
-                            disabled={!setupCategoria}
-                          />
-                        </div>
-                        
-                        <div className="w-[140px]">
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">⚖️ Peso Cx (KG)</label>
-                          <div className="relative">
-                            <input 
-                              type="text" 
-                              value={setupKgCaixa} 
-                              onChange={(e) => setSetupKgCaixa(e.target.value)} 
-                              placeholder="0,00" 
-                              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 font-black text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" 
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">KG</span>
-                          </div>
-                        </div>
-                        
-                        <div className="w-[160px]">
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">💰 Valor Cx (R$)</label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600 font-bold text-sm">R$</span>
-                            <input 
-                              type="text" 
-                              value={setupValorCaixa} 
-                              onChange={(e) => setSetupValorCaixa(e.target.value)} 
-                              placeholder="0,00" 
-                              className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-4 py-3 text-slate-800 font-black text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" 
-                            />
-                          </div>
-                        </div>
-                        
-                        <button 
-                          type="submit" 
-                          className="bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black px-6 py-3 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95 flex items-center gap-2 h-[52px]"
-                        >
-                          <span className="text-xl leading-none">+</span> Adicionar
-                        </button>
-                      </form>
-
-                      {/* Tabela de Setup */}
-                      {itensCeasa.length > 0 && (
-                        <div className="mt-6 border border-slate-200 rounded-xl overflow-hidden animate-slide-in-right">
-                          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
-                            <span className="font-bold text-sm text-slate-700">📋 Resumo da Carga</span>
-                            <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-1 rounded-full">{itensCeasa.length} itens</span>
-                          </div>
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                              <thead className="bg-white">
-                                <tr>
-                                  <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Produto</th>
-                                  <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider text-center">Ref.</th>
-                                  <th className="px-4 py-3 text-[10px] font-black text-emerald-600 uppercase tracking-wider text-right">Preço Final/Kg</th>
-                                  <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider text-center w-12">Ação</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-50">
-                                {itensCeasa.map(item => (
-                                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                                    <td className="px-4 py-3 font-bold text-slate-800 text-sm">{item.produtoNome}</td>
-                                    <td className="px-4 py-3 text-center">
-                                      <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-semibold">{item.kgCaixa}kg / {formatarMoeda(item.valorCaixa)}</span>
-                                    </td>
-                                    <td className="px-4 py-3 text-right font-black text-emerald-600">{formatarMoeda(item.precoUnitarioComDesconto)}</td>
-                                    <td className="px-4 py-3 text-center">
-                                      <button 
-                                        onClick={() => removerItemSetup(item.id)} 
-                                        className="w-7 h-7 rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors flex items-center justify-center"
-                                      >
-                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Botão Start */}
-                      <button 
-                        onClick={iniciarDigitacaoDaNota} 
-                        disabled={itensCeasa.length === 0 || !formEmpresa || !formEmpenho} 
-                        className={`mt-6 w-full py-4 rounded-xl font-black text-sm uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 ${
-                          itensCeasa.length === 0 || !formEmpresa || !formEmpenho 
-                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' 
-                            : 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0'
-                        }`}
-                      >
-                        {itensCeasa.length === 0 || !formEmpresa || !formEmpenho ? '🔒 Preencha todos os dados para continuar' : '🚀 Iniciar Lançamento de Pesos'}
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                /* TELA DE DIGITAÇÃO DAS QUANTIDADES */
-                <div className="space-y-6 animate-slide-in-left">
-                  <div className="bg-slate-900 rounded-2xl shadow-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
-                    <div className="absolute top-[-50%] right-[-10%] w-64 h-64 bg-emerald-500/20 rounded-full blur-[80px] pointer-events-none"></div>
-                    
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full tracking-wider shadow-md">Digitação Ativa</span>
-                        <span className="text-slate-400 text-xs font-medium">Tabela: {notaAtual.dataTabelaCeasa}</span>
-                      </div>
-                      <h2 className="text-2xl font-black text-white tracking-tight">{notaAtual.empresa}</h2>
-                      <p className="text-emerald-400 font-medium text-sm">NF / Empenho: {notaAtual.empenho}</p>
-                    </div>
-                    
-                    <div className="flex gap-2 relative z-10">
-                      <button onClick={cancelarNota} className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-5 py-2.5 rounded-xl transition-colors text-sm">
-                        Cancelar
-                      </button>
-                      <button onClick={finalizarNota} className="bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-900 font-black px-6 py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center gap-2 text-sm">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                        </svg>
-                        SALVAR
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                          <tr>
-                            <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-wider">Produto</th>
-                            <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-wider text-center">Ref.</th>
-                            <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-wider text-center">Desc</th>
-                            <th className="p-4 text-[10px] font-black text-emerald-600 uppercase tracking-wider text-right">Preço Kg</th>
-                            <th className="p-4 text-[10px] font-black text-white bg-emerald-500 uppercase tracking-wider text-center">Peso (KG)</th>
-                            <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right">Subtotal</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {notaAtual.itens.map((item) => (
-                            <tr key={item.id} className="hover:bg-emerald-50/30 transition-colors">
-                              <td className="p-4 font-bold text-slate-800 text-sm">{item.produtoNome}</td>
-                              <td className="p-4 text-center text-slate-500 text-xs">{item.kgCaixa}kg / {formatarMoeda(item.valorCaixa)}</td>
-                              <td className="p-4 text-center font-bold text-rose-500 bg-rose-50/50 text-xs">-{item.desconto}%</td>
-                              <td className="p-4 text-right font-black text-slate-700">{formatarMoeda(item.precoUnitarioComDesconto)}</td>
-                              <td className="p-3 bg-emerald-50/50">
-                                <input 
-                                  type="text" 
-                                  value={item.quantidadeStr} 
-                                  onChange={(e) => handleQuantidadeChange(item.id, e.target.value)} 
-                                  placeholder="0,00" 
-                                  className="w-28 text-center font-black text-lg text-emerald-900 border-2 border-emerald-200 rounded-xl py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white shadow-sm" 
-                                />
-                              </td>
-                              <td className="p-4 text-right font-black text-emerald-600">{formatarMoeda(item.total)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    
-                    <div className="bg-slate-900 p-5 flex flex-col md:flex-row justify-between items-center gap-3 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/20 rounded-full blur-[80px] pointer-events-none"></div>
-                      <div className="relative z-10">
-                        <span className="text-slate-400 uppercase font-black tracking-wider text-[10px]">Total a Pagar</span>
-                      </div>
-                      <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200 relative z-10">
-                        {formatarMoeda(notaAtual.totalGeral)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+    <div className="space-y-4">
+      {/* CABEÇALHO COMPACTO */}
+      <div className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white shadow-sm">
+            <Package size={16} />
+          </div>
+          <div>
+            <h1 className="text-base font-bold text-slate-800">Nova Conferência</h1>
+            <p className="text-[11px] text-slate-500">Lançar pesos e valores</p>
           </div>
         </div>
       </div>
+
+      {!notaAtual ? (
+        <>
+          {/* PASSO 1: DADOS GERAIS */}
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 bg-emerald-500 rounded flex items-center justify-center text-white text-[10px] font-bold">1</div>
+                <span className="text-sm font-semibold text-slate-700">Setup da Conferência</span>
+              </div>
+            </div>
+            
+            <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Empresa</label>
+                <input 
+                  type="text" 
+                  value={formEmpresa} 
+                  onChange={(e) => setFormEmpresa(e.target.value.toUpperCase())} 
+                  placeholder="Nome da empresa" 
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" 
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Empenho / NF</label>
+                <input 
+                  type="text" 
+                  value={formEmpenho} 
+                  onChange={(e) => setFormEmpenho(e.target.value.toUpperCase())} 
+                  placeholder="Número da NF" 
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" 
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Tabela Ceasa</label>
+                <input 
+                  type="date" 
+                  value={(() => {
+                    if (!formDataTabela) return '';
+                    const partes = formDataTabela.split('/');
+                    if (partes.length === 3) return `${partes[2]}-${partes[1]}-${partes[0]}`;
+                    return '';
+                  })()}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      const [ano, mes, dia] = e.target.value.split('-');
+                      const dataUTC = new Date(Date.UTC(parseInt(ano), parseInt(mes) - 1, parseInt(dia)));
+                      setFormDataTabela(formatarDataBrasil(dataUTC));
+                    }
+                  }}
+                  className="w-full bg-emerald-50/30 border border-emerald-200 rounded-lg px-3 py-2 text-sm text-emerald-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all cursor-pointer"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* PASSO 2: PRODUTOS */}
+          <div className="bg-white border border-slate-200 rounded-xl overflow-visible shadow-sm">
+            <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 bg-slate-600 rounded flex items-center justify-center text-white text-[10px] font-bold">2</div>
+                <span className="text-sm font-semibold text-slate-700">Montar Carga Ceasa</span>
+              </div>
+            </div>
+
+            <div className="p-4">
+              {/* Formulário Horizontal */}
+              <form onSubmit={handleAddSetupCeasa} className="flex flex-wrap items-end gap-2">
+                <div className="flex-1 min-w-[160px]">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Categoria</label>
+                  <PremiumSelect
+                    value={setupCategoria}
+                    onChange={setSetupCategoria}
+                    options={categoriasDisponiveis.map(cat => ({ value: cat, label: cat }))}
+                    placeholder="Selecione..."
+                    icon={<Tag size={12} />}
+                  />
+                </div>
+                
+                <div className="flex-1 min-w-[180px]">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Tipo</label>
+                  <PremiumSelect
+                    value={setupProdutoId}
+                    onChange={setSetupProdutoId}
+                    options={subtiposDisponiveis}
+                    placeholder={setupCategoria ? "Selecione..." : "Escolha categoria"}
+                    icon={<Box size={12} />}
+                    disabled={!setupCategoria}
+                  />
+                </div>
+                
+                <div className="w-[120px]">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Peso (KG)</label>
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      value={setupKgCaixa} 
+                      onChange={(e) => setSetupKgCaixa(e.target.value)} 
+                      placeholder="0,00" 
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" 
+                    />
+                    <Weight size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                  </div>
+                </div>
+                
+                <div className="w-[140px]">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Valor (R$)</label>
+                  <div className="relative">
+                    <DollarSign size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-emerald-500" />
+                    <input 
+                      type="text" 
+                      value={setupValorCaixa} 
+                      onChange={(e) => setSetupValorCaixa(e.target.value)} 
+                      placeholder="0,00" 
+                      className="w-full bg-white border border-slate-200 rounded-lg pl-7 pr-3 py-2 text-sm text-slate-800 font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" 
+                    />
+                  </div>
+                </div>
+                
+                <button 
+                  type="submit" 
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center gap-1.5 text-sm h-[38px]"
+                >
+                  <Plus size={14} /> Adicionar
+                </button>
+              </form>
+
+              {/* Tabela de Setup */}
+              {itensCeasa.length > 0 && (
+                <div className="mt-4 border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex justify-between items-center">
+                    <span className="font-semibold text-xs text-slate-600">Resumo da Carga</span>
+                    <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">{itensCeasa.length} itens</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-white">
+                        <tr>
+                          <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase">Produto</th>
+                          <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase text-center">Ref.</th>
+                          <th className="px-3 py-2 text-[10px] font-bold text-emerald-600 uppercase text-right">Preço Final</th>
+                          <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase text-center w-10">Ação</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {itensCeasa.map(item => (
+                          <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-3 py-2 font-semibold text-slate-700 text-xs">{item.produtoNome}</td>
+                            <td className="px-3 py-2 text-center">
+                              <span className="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded text-[10px] font-medium">{item.kgCaixa}kg</span>
+                            </td>
+                            <td className="px-3 py-2 text-right font-bold text-emerald-600 text-sm">{formatarMoeda(item.precoUnitarioComDesconto)}</td>
+                            <td className="px-3 py-2 text-center">
+                              <button 
+                                onClick={() => removerItemSetup(item.id)} 
+                                className="p-1 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Botão Start */}
+              <button 
+                onClick={iniciarDigitacaoDaNota} 
+                disabled={itensCeasa.length === 0 || !formEmpresa || !formEmpenho} 
+                className={`mt-4 w-full py-2.5 rounded-lg font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 ${
+                  itensCeasa.length === 0 || !formEmpresa || !formEmpenho 
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' 
+                    : 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0'
+                }`}
+              >
+                <ArrowRight size={14} />
+                {itensCeasa.length === 0 || !formEmpresa || !formEmpenho ? 'Preencha todos os dados' : 'Iniciar Lançamento'}
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        /* TELA DE DIGITAÇÃO DAS QUANTIDADES */
+        <div className="space-y-4">
+          {/* Header da Digitação */}
+          <div className="bg-slate-800 rounded-xl shadow-lg p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 relative overflow-hidden">
+            <div className="absolute top-[-50%] right-[-10%] w-48 h-48 bg-emerald-500/20 rounded-full blur-[60px] pointer-events-none"></div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full tracking-wide">Digitação Ativa</span>
+                <span className="text-slate-400 text-[10px]">Tabela: {notaAtual.dataTabelaCeasa}</span>
+              </div>
+              <h2 className="text-lg font-bold text-white">{notaAtual.empresa}</h2>
+              <p className="text-emerald-400 text-xs">NF: {notaAtual.empenho}</p>
+            </div>
+            
+            <div className="flex gap-2 relative z-10">
+              <button onClick={cancelarNota} className="bg-slate-700 hover:bg-slate-600 text-white font-medium px-4 py-1.5 rounded-lg transition-colors text-sm">
+                Cancelar
+              </button>
+              <button onClick={finalizarNota} className="bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-900 font-bold px-5 py-1.5 rounded-lg transition-all shadow-md hover:shadow-lg flex items-center gap-1.5 text-sm">
+                <Save size={14} /> Salvar
+              </button>
+            </div>
+          </div>
+
+          {/* Tabela de Lançamento */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="p-3 text-[10px] font-bold text-slate-400 uppercase">Produto</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-400 uppercase text-center">Ref.</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-400 uppercase text-center">Desc</th>
+                    <th className="p-3 text-[10px] font-bold text-emerald-600 uppercase text-right">Preço</th>
+                    <th className="p-3 text-[10px] font-bold text-white bg-emerald-500 uppercase text-center">Peso (KG)</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-400 uppercase text-right">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {notaAtual.itens.map((item) => (
+                    <tr key={item.id} className="hover:bg-emerald-50/30 transition-colors">
+                      <td className="p-3 font-semibold text-slate-700 text-xs">{item.produtoNome}</td>
+                      <td className="p-3 text-center text-slate-500 text-xs">{item.kgCaixa}kg</td>
+                      <td className="p-3 text-center font-bold text-rose-500 bg-rose-50/50 text-xs">-{item.desconto}%</td>
+                      <td className="p-3 text-right font-bold text-slate-700 text-sm">{formatarMoeda(item.precoUnitarioComDesconto)}</td>
+                      <td className="p-2 bg-emerald-50/50">
+                        <input 
+                          type="text" 
+                          value={item.quantidadeStr} 
+                          onChange={(e) => handleQuantidadeChange(item.id, e.target.value)} 
+                          placeholder="0,00" 
+                          className="w-24 text-center font-bold text-base text-emerald-900 border-2 border-emerald-200 rounded-lg py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white" 
+                        />
+                       </td>
+                      <td className="p-3 text-right font-bold text-emerald-600">{formatarMoeda(item.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Totalizador */}
+            <div className="bg-slate-800 p-4 flex flex-col md:flex-row justify-between items-center gap-2 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-[60px] pointer-events-none"></div>
+              <div className="relative z-10">
+                <span className="text-slate-400 uppercase font-bold tracking-wider text-[9px]">Total a Pagar</span>
+              </div>
+              <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200 relative z-10">
+                {formatarMoeda(notaAtual.totalGeral)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
