@@ -6,12 +6,8 @@ import { createPortal } from 'react-dom';
 import { 
   Plus, 
   Save, 
-  X, 
   Search, 
   ChevronDown,
-  Building2,
-  FileText,
-  Calendar,
   Package,
   DollarSign,
   Trash2,
@@ -19,13 +15,16 @@ import {
   AlertCircle,
   Info,
   ArrowRight,
-  Lock,
-  TrendingUp,
   Box,
   Tag,
   Weight,
-  CreditCard
+  FileUp,
+  Loader2,
+  Sparkles,
+  Database
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase/client';
+import { salvarPrecosCeasa, buscarPrecosCeasa, salvarNotaFiscal } from '@/lib/supabase/db';
 
 // ==================== BANCO DE DADOS CEASA ====================
 const PRODUTOS_CONTRATO = [
@@ -137,6 +136,13 @@ interface NotaFiscal {
   totalGeral: number;
 }
 
+interface PrecoCeasa {
+  categoria: string;
+  tipo: string;
+  kgEmbalagem: number;
+  valorMc: number;
+}
+
 // ==================== UTILITÁRIOS ====================
 const formatarMoeda = (valor: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
@@ -149,12 +155,30 @@ const formatarDataBrasil = (date: Date) => {
   return `${dia}/${mes}/${ano}`;
 };
 
+const formatarDataISO = (dataStr: string) => {
+  const partes = dataStr.split('/');
+  if (partes.length === 3) {
+    return `${partes[2]}-${partes[1]}-${partes[0]}`;
+  }
+  return dataStr;
+};
+
 const calcularPrecoComDesconto = (precoUnitario: number, descontoPercentual: number) => {
   const valorDesconto = precoUnitario * (descontoPercentual / 100);
   return Math.round((precoUnitario - valorDesconto) * 100) / 100;
 };
 
-// ==================== SELECTOR PERSONALIZADO COM ÍCONES ====================
+const normalizarTexto = (texto: string) => {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s]/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+};
+
+// ==================== SELECTOR PERSONALIZADO ====================
 interface PremiumSelectProps {
   value: string;
   onChange: (value: string) => void;
@@ -316,6 +340,116 @@ const PremiumSelect = ({ value, onChange, options, placeholder, icon, disabled }
   );
 };
 
+// ==================== COMPONENTE UPLOAD PDF ====================
+const UploadPDFButton = ({ onDataExtracted }: { onDataExtracted: (produtos: PrecoCeasa[]) => void }) => {
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
+
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadProgress('Lendo arquivo...');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setUploadProgress('Enviando para processamento...');
+      const response = await fetch('/api/upload-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const text = await response.text();
+      console.log('📦 Resposta bruta da API:', text.substring(0, 200));
+      
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error('❌ Erro ao parsear JSON:', text);
+        setUploadProgress('Erro na resposta do servidor');
+        setTimeout(() => {
+          setUploadProgress('');
+          setIsUploading(false);
+        }, 3000);
+        return;
+      }
+
+      if (!response.ok) {
+        setUploadProgress(data.error || 'Erro no servidor');
+        setTimeout(() => {
+          setUploadProgress('');
+          setIsUploading(false);
+        }, 3000);
+        return;
+      }
+
+      if (!data.success || !data.produtos || data.produtos.length === 0) {
+        console.warn('⚠️ Nenhum produto encontrado na resposta:', data);
+        setUploadProgress('Nenhum produto reconhecido no PDF');
+        setTimeout(() => {
+          setUploadProgress('');
+          setIsUploading(false);
+        }, 3000);
+        return;
+      }
+
+      console.log(`✅ ${data.totalProdutos} produtos encontrados!`);
+      setUploadProgress(`${data.totalProdutos} produtos encontrados!`);
+      onDataExtracted(data.produtos);
+      
+      setTimeout(() => {
+        setUploadProgress('');
+        setIsUploading(false);
+      }, 2000);
+
+    } catch (error) {
+      console.error('❌ Upload error:', error);
+      setUploadProgress('Erro na conexão');
+      setTimeout(() => {
+        setUploadProgress('');
+        setIsUploading(false);
+      }, 3000);
+    }
+
+    event.target.value = '';
+  };
+
+  return (
+    <div className="relative">
+      <label className={`
+        flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all
+        ${isUploading 
+          ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+          : 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:shadow-md hover:-translate-y-0.5 active:translate-y-0'
+        }
+      `}>
+        {isUploading ? (
+          <>
+            <Loader2 size={16} className="animate-spin" />
+            <span>{uploadProgress || 'Processando...'}</span>
+          </>
+        ) : (
+          <>
+            <FileUp size={16} />
+            <span>Upload PDF Ceasa</span>
+          </>
+        )}
+        <input
+          type="file"
+          accept="application/pdf"
+          onChange={handleUpload}
+          disabled={isUploading}
+          className="hidden"
+        />
+      </label>
+    </div>
+  );
+};
+
 // ==================== TOAST ====================
 const Toast = ({ message, type, onClose }: { message: string; type: string; onClose: () => void }) => {
   useEffect(() => { const timer = setTimeout(onClose, 3000); return () => clearTimeout(timer); }, [onClose]);
@@ -340,6 +474,7 @@ const Toast = ({ message, type, onClose }: { message: string; type: string; onCl
 export default function NovaConferenciaPage() {
   const router = useRouter();
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [notaAtual, setNotaAtual] = useState<NotaFiscal | null>(null);
   
   const [formEmpresa, setFormEmpresa] = useState('');
@@ -355,6 +490,9 @@ export default function NovaConferenciaPage() {
   const [setupKgCaixa, setSetupKgCaixa] = useState('');
   const [setupValorCaixa, setSetupValorCaixa] = useState('');
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+  const [precosCeasa, setPrecosCeasa] = useState<PrecoCeasa[]>([]);
+  const [resetEffect, setResetEffect] = useState(false);
+  const [supabaseStatus, setSupabaseStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
 
   const categoriasDisponiveis = Array.from(new Set(PRODUTOS_CONTRATO.map(p => p.categoria))).sort();
   const subtiposDisponiveis = PRODUTOS_CONTRATO
@@ -362,12 +500,30 @@ export default function NovaConferenciaPage() {
     .sort((a, b) => a.nome.localeCompare(b.nome))
     .map(p => ({ value: p.id.toString(), label: p.nome, discount: p.desconto }));
 
+  // Verificar conexão com Supabase
+  useEffect(() => {
+    const verificarConexao = async () => {
+      try {
+        const { data, error } = await supabase.from('ceasa_precos').select('count', { count: 'exact', head: true });
+        if (error) throw error;
+        setSupabaseStatus('connected');
+        console.log('✅ Supabase conectado');
+      } catch (error) {
+        setSupabaseStatus('disconnected');
+        console.warn('⚠️ Supabase desconectado, usando apenas localStorage');
+      }
+    };
+    verificarConexao();
+  }, []);
+
+  // Carregar dados do localStorage
   useEffect(() => {
     const notaEmAndamento = localStorage.getItem('nota_atual_hortifruti');
     if (notaEmAndamento) setNotaAtual(JSON.parse(notaEmAndamento));
     setIsLoaded(true);
   }, []);
 
+  // Salvar nota em andamento no localStorage
   useEffect(() => {
     if (isLoaded) {
       if (notaAtual) localStorage.setItem('nota_atual_hortifruti', JSON.stringify(notaAtual));
@@ -375,7 +531,127 @@ export default function NovaConferenciaPage() {
     }
   }, [notaAtual, isLoaded]);
 
+  // Carregar preços da CEASA do Supabase
+  useEffect(() => {
+    const carregarPrecosDoBanco = async () => {
+      if (supabaseStatus === 'connected' && formDataTabela) {
+        const precos = await buscarPrecosCeasa(formatarDataISO(formDataTabela));
+        if (precos && precos.length > 0) {
+          setPrecosCeasa(precos);
+          showToast(`${precos.length} preços carregados do banco de dados!`, 'info');
+          console.log(`📦 ${precos.length} preços carregados do Supabase para ${formDataTabela}`);
+        }
+      }
+    };
+    
+    carregarPrecosDoBanco();
+  }, [formDataTabela, supabaseStatus]);
+
+  // Resetar campos quando categoria muda
+  useEffect(() => {
+    setSetupProdutoId('');
+    setSetupKgCaixa('');
+    setSetupValorCaixa('');
+    setResetEffect(true);
+    setTimeout(() => setResetEffect(false), 500);
+    
+    if (setupCategoria) {
+      console.log(`📁 Categoria alterada para: ${setupCategoria} - Campos resetados`);
+    }
+  }, [setupCategoria]);
+
+  // Buscar preço automaticamente ao selecionar tipo
+  useEffect(() => {
+    if (!setupCategoria || !setupProdutoId || precosCeasa.length === 0) return;
+    
+    const produtoSelecionado = PRODUTOS_CONTRATO.find(p => p.id.toString() === setupProdutoId);
+    if (!produtoSelecionado) return;
+    
+    console.log(`🔍 Buscando preço para: ${produtoSelecionado.categoria} - ${produtoSelecionado.nome}`);
+    
+    const encontrarPreco = () => {
+      const categoriaNorm = normalizarTexto(produtoSelecionado.categoria);
+      const nomeNorm = normalizarTexto(produtoSelecionado.nome);
+      
+      const sinonimos: Record<string, string[]> = {
+        'CENOURA': ['CENOURA A', 'CENOURA AA', 'CENOURA COMUM'],
+        'GOIABA': ['GOIABA VERMELHA', 'GOIABA BRANCA', 'GOIABA COMUM'],
+        'COUVE': ['COUVE MANTEIGA', 'COUVE COMUM'],
+        'COUVE-FLOR': ['COUVE FLOR', 'COUVE FLOR MEDIA', 'COUVE FLOR GRANDE'],
+        'CEBOLINHA': ['CEBOLINHA COMUM', 'CEBOLINHA VERDE', 'CEBOLINHA MAÇO'],
+        'CEBOLA COMUM': ['CEBOLA BRANCA', 'CEBOLA COMUM', 'CEBOLA PERA'],
+        'CEBOLA': ['CEBOLA BRANCA', 'CEBOLA PERA', 'CEBOLA ROXA'],
+        'ALFACE': ['ALFACE AMERICANA', 'ALFACE CRESPA', 'ALFACE LISA'],
+        'TOMATE': ['TOMATE LONGA VIDA', 'TOMATE SALADETE', 'TOMATE CEREJA'],
+        'BETERRABA': ['BETERRABA A', 'BETERRABA AA', 'BETERRABA EXTRA']
+      };
+      
+      // Match exato
+      let preco = precosCeasa.find(p => 
+        normalizarTexto(p.categoria) === categoriaNorm &&
+        normalizarTexto(p.tipo) === nomeNorm
+      );
+      if (preco) return preco;
+      
+      // Match por categoria e nome contido
+      preco = precosCeasa.find(p => 
+        normalizarTexto(p.categoria) === categoriaNorm &&
+        normalizarTexto(p.tipo).includes(nomeNorm)
+      );
+      if (preco) return preco;
+      
+      // Match por sinônimos
+      const sinonimosLista = sinonimos[nomeNorm] || sinonimos[`${categoriaNorm}|${nomeNorm}`] || [];
+      for (const sinonimo of sinonimosLista) {
+        preco = precosCeasa.find(p => 
+          normalizarTexto(p.categoria) === categoriaNorm &&
+          normalizarTexto(p.tipo).includes(normalizarTexto(sinonimo))
+        );
+        if (preco) return preco;
+      }
+      
+      // Match por categoria (primeiro da categoria)
+      const precosDaCategoria = precosCeasa.filter(p => 
+        normalizarTexto(p.categoria) === categoriaNorm
+      );
+      if (precosDaCategoria.length > 0) return precosDaCategoria[0];
+      
+      return null;
+    };
+    
+    const precoEncontrado = encontrarPreco();
+    
+    if (precoEncontrado) {
+      console.log(`✅ Preço encontrado: ${precoEncontrado.tipo} | ${precoEncontrado.kgEmbalagem}kg | ${formatarMoeda(precoEncontrado.valorMc)}`);
+      setSetupKgCaixa(precoEncontrado.kgEmbalagem.toString().replace('.', ','));
+      setSetupValorCaixa(precoEncontrado.valorMc.toString().replace('.', ','));
+      showToast(`Preço carregado: ${precoEncontrado.kgEmbalagem}kg por ${formatarMoeda(precoEncontrado.valorMc)}`, 'info');
+    } else {
+      console.warn(`⚠️ Preço não encontrado para: ${produtoSelecionado.categoria} - ${produtoSelecionado.nome}`);
+    }
+  }, [setupCategoria, setupProdutoId, precosCeasa]);
+
   const showToast = (message: string, type: string) => setToast({ message, type });
+
+  // Processar produtos extraídos do PDF
+  const handlePDFDataExtracted = async (produtos: PrecoCeasa[]) => {
+    console.log('📦 Produtos CEASA recebidos:', produtos.length);
+    setPrecosCeasa(produtos);
+    
+    // Salvar no Supabase
+    if (supabaseStatus === 'connected') {
+      try {
+        await salvarPrecosCeasa(formatarDataISO(formDataTabela), produtos);
+        console.log('✅ Preços salvos no Supabase');
+        showToast(`${produtos.length} preços salvos no banco de dados!`, 'success');
+      } catch (error) {
+        console.error('❌ Erro ao salvar no Supabase:', error);
+        showToast('Erro ao salvar no banco, mas dados estão no navegador', 'error');
+      }
+    } else {
+      showToast(`${produtos.length} preços carregados (apenas navegador)`, 'info');
+    }
+  };
 
   const handleAddSetupCeasa = (e: React.FormEvent) => {
     e.preventDefault();
@@ -467,15 +743,35 @@ export default function NovaConferenciaPage() {
     });
   };
 
-  const finalizarNota = () => {
+  const finalizarNota = async () => {
     if (!notaAtual) return;
-    const notasSalvas = localStorage.getItem('banco_notas_hortifruti');
-    const bancoNotas = notasSalvas ? JSON.parse(notasSalvas) : [];
     
-    localStorage.setItem('banco_notas_hortifruti', JSON.stringify([notaAtual, ...bancoNotas]));
-    setNotaAtual(null);
-    localStorage.removeItem('nota_atual_hortifruti');
-    router.push('/dashboard/notas');
+    setIsSaving(true);
+    
+    try {
+      // Salvar no localStorage
+      const notasSalvas = localStorage.getItem('banco_notas_hortifruti');
+      const bancoNotas = notasSalvas ? JSON.parse(notasSalvas) : [];
+      localStorage.setItem('banco_notas_hortifruti', JSON.stringify([notaAtual, ...bancoNotas]));
+      
+      // Salvar no Supabase se conectado
+      if (supabaseStatus === 'connected') {
+        await salvarNotaFiscal(notaAtual);
+        console.log('✅ Nota salva no Supabase');
+        showToast('Nota salva com sucesso no banco de dados!', 'success');
+      } else {
+        showToast('Nota salva apenas no navegador', 'info');
+      }
+      
+      setNotaAtual(null);
+      localStorage.removeItem('nota_atual_hortifruti');
+      router.push('/dashboard/notas');
+    } catch (error) {
+      console.error('❌ Erro ao salvar nota:', error);
+      showToast('Erro ao salvar nota, tente novamente', 'error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const cancelarNota = () => {
@@ -496,7 +792,7 @@ export default function NovaConferenciaPage() {
 
   return (
     <div className="space-y-4">
-      {/* CABEÇALHO COMPACTO */}
+      {/* CABEÇALHO COMPACTO COM UPLOAD */}
       <div className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white shadow-sm">
@@ -507,7 +803,37 @@ export default function NovaConferenciaPage() {
             <p className="text-[11px] text-slate-500">Lançar pesos e valores</p>
           </div>
         </div>
+        
+        <div className="flex items-center gap-2">
+          {/* Status Supabase */}
+          {supabaseStatus === 'connected' && (
+            <div className="hidden md:flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded-full">
+              <Database size={12} className="text-emerald-600" />
+              <span className="text-[10px] text-emerald-700 font-medium">Cloud</span>
+            </div>
+          )}
+          <UploadPDFButton onDataExtracted={handlePDFDataExtracted} />
+        </div>
       </div>
+
+      {/* INDICADOR DE PREÇOS CARREGADOS */}
+      {precosCeasa.length > 0 && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles size={14} className="text-emerald-600" />
+            <span className="text-xs text-emerald-700 font-medium">
+              {precosCeasa.length} preços da CEASA carregados para {formDataTabela}
+              {supabaseStatus === 'connected' && ' (sync com nuvem)'}
+            </span>
+          </div>
+          <button 
+            onClick={() => setPrecosCeasa([])}
+            className="text-xs text-emerald-600 hover:text-emerald-800"
+          >
+            Limpar
+          </button>
+        </div>
+      )}
 
       {!notaAtual ? (
         <>
@@ -574,7 +900,6 @@ export default function NovaConferenciaPage() {
             </div>
 
             <div className="p-4">
-              {/* Formulário Horizontal */}
               <form onSubmit={handleAddSetupCeasa} className="flex flex-wrap items-end gap-2">
                 <div className="flex-1 min-w-[160px]">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Categoria</label>
@@ -607,7 +932,9 @@ export default function NovaConferenciaPage() {
                       value={setupKgCaixa} 
                       onChange={(e) => setSetupKgCaixa(e.target.value)} 
                       placeholder="0,00" 
-                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" 
+                      className={`w-full bg-white border rounded-lg px-3 py-2 text-sm text-slate-800 font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all ${
+                        resetEffect ? 'bg-amber-50 border-amber-400' : 'border-slate-200'
+                      }`}
                     />
                     <Weight size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" />
                   </div>
@@ -622,7 +949,9 @@ export default function NovaConferenciaPage() {
                       value={setupValorCaixa} 
                       onChange={(e) => setSetupValorCaixa(e.target.value)} 
                       placeholder="0,00" 
-                      className="w-full bg-white border border-slate-200 rounded-lg pl-7 pr-3 py-2 text-sm text-slate-800 font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" 
+                      className={`w-full bg-white border rounded-lg pl-7 pr-3 py-2 text-sm text-slate-800 font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all ${
+                        resetEffect ? 'bg-amber-50 border-amber-400' : 'border-slate-200'
+                      }`}
                     />
                   </div>
                 </div>
@@ -635,7 +964,6 @@ export default function NovaConferenciaPage() {
                 </button>
               </form>
 
-              {/* Tabela de Setup */}
               {itensCeasa.length > 0 && (
                 <div className="mt-4 border border-slate-200 rounded-lg overflow-hidden">
                   <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex justify-between items-center">
@@ -676,7 +1004,6 @@ export default function NovaConferenciaPage() {
                 </div>
               )}
 
-              {/* Botão Start */}
               <button 
                 onClick={iniciarDigitacaoDaNota} 
                 disabled={itensCeasa.length === 0 || !formEmpresa || !formEmpenho} 
@@ -693,9 +1020,7 @@ export default function NovaConferenciaPage() {
           </div>
         </>
       ) : (
-        /* TELA DE DIGITAÇÃO DAS QUANTIDADES */
         <div className="space-y-4">
-          {/* Header da Digitação */}
           <div className="bg-slate-800 rounded-xl shadow-lg p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 relative overflow-hidden">
             <div className="absolute top-[-50%] right-[-10%] w-48 h-48 bg-emerald-500/20 rounded-full blur-[60px] pointer-events-none"></div>
             
@@ -712,13 +1037,17 @@ export default function NovaConferenciaPage() {
               <button onClick={cancelarNota} className="bg-slate-700 hover:bg-slate-600 text-white font-medium px-4 py-1.5 rounded-lg transition-colors text-sm">
                 Cancelar
               </button>
-              <button onClick={finalizarNota} className="bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-900 font-bold px-5 py-1.5 rounded-lg transition-all shadow-md hover:shadow-lg flex items-center gap-1.5 text-sm">
-                <Save size={14} /> Salvar
+              <button 
+                onClick={finalizarNota} 
+                disabled={isSaving}
+                className="bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-900 font-bold px-5 py-1.5 rounded-lg transition-all shadow-md hover:shadow-lg flex items-center gap-1.5 text-sm disabled:opacity-50"
+              >
+                {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {isSaving ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
           </div>
 
-          {/* Tabela de Lançamento */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
@@ -747,7 +1076,7 @@ export default function NovaConferenciaPage() {
                           placeholder="0,00" 
                           className="w-24 text-center font-bold text-base text-emerald-900 border-2 border-emerald-200 rounded-lg py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white" 
                         />
-                       </td>
+                      </td>
                       <td className="p-3 text-right font-bold text-emerald-600">{formatarMoeda(item.total)}</td>
                     </tr>
                   ))}
@@ -755,7 +1084,6 @@ export default function NovaConferenciaPage() {
               </table>
             </div>
             
-            {/* Totalizador */}
             <div className="bg-slate-800 p-4 flex flex-col md:flex-row justify-between items-center gap-2 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-[60px] pointer-events-none"></div>
               <div className="relative z-10">
