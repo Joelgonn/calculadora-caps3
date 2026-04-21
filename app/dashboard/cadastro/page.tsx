@@ -25,6 +25,8 @@ import {
   Database,
   Pencil
 } from 'lucide-react';
+
+// Se o supabase não estiver configurado corretamente, não vai derrubar a página
 import { supabase } from '@/lib/supabase/client';
 import { salvarPrecosCeasa, buscarPrecosCeasa, salvarNotaFiscal } from '@/lib/supabase/db';
 
@@ -294,6 +296,7 @@ const formatarDataBrasil = (date: Date) => {
 };
 
 const formatarDataISO = (dataStr: string) => {
+  if (!dataStr) return '';
   const partes = dataStr.split('/');
   if (partes.length === 3) {
     return `${partes[2]}-${partes[1]}-${partes[0]}`;
@@ -307,6 +310,7 @@ const calcularPrecoComDesconto = (precoUnitario: number, descontoPercentual: num
 };
 
 const normalizarTextoMatch = (texto: string) => {
+  if (!texto) return '';
   return texto
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -315,7 +319,6 @@ const normalizarTextoMatch = (texto: string) => {
     .toUpperCase();
 };
 
-// CORREÇÃO: Tipagem de retorno explícita adicionada aqui!
 const validarPreco = (valorNota: number, valorCeasa: number): { status: 'ok' | 'divergente'; diferenca: number } => {
   const diferenca = valorNota - valorCeasa;
   const isOk = Math.abs(diferenca) < 0.05;
@@ -332,7 +335,7 @@ const encontrarPrecoCeasa = (
   lista: PrecoCeasa[]
 ): PrecoCeasa | null => {
 
-  if (!item.produtoNome || !lista || lista.length === 0) return null;
+  if (!item?.produtoNome || !lista || lista.length === 0) return null;
 
   const nomeItem = normalizarTextoMatch(item.produtoNome);
 
@@ -360,44 +363,6 @@ const encontrarPrecoCeasa = (
   return matchParcial || null;
 };
 
-// ==================== VALIDAÇÃO DE ITEM COM CEASA ====================
-const validarItemComCeasa = (
-  item: ItemNota,
-  listaCeasa: PrecoCeasa[]
-): ItemNota => {
-
-  const match = encontrarPrecoCeasa(item, listaCeasa);
-
-  if (!match) {
-    return {
-      ...item,
-      precoCeasa: 0,
-      statusValidacao: 'divergente',
-      diferenca: 0
-    };
-  }
-
-  const precoCeasa = match.valorMc;
-
-  if (!item.precoUnitarioNota) {
-    return {
-      ...item,
-      precoCeasa,
-      statusValidacao: 'divergente',
-      diferenca: 0
-    };
-  }
-
-  const resultado = validarPreco(item.precoUnitarioNota, precoCeasa);
-
-  return {
-    ...item,
-    precoCeasa,
-    statusValidacao: resultado.status,
-    diferenca: resultado.diferenca
-  };
-};
-
 // ==================== SELECTOR PERSONALIZADO ====================
 interface PremiumSelectProps {
   value: string;
@@ -419,7 +384,7 @@ const PremiumSelect = ({ value, onChange, options, placeholder, icon, disabled }
   const selectedOption = options.find(opt => opt.value === value);
   
   const filteredOptions = options.filter(opt => 
-    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+    opt?.label?.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
   const updatePosition = () => {
@@ -683,10 +648,8 @@ export default function NovaConferenciaPage() {
   const [formEmpresa, setFormEmpresa] = useState('');
   const [formEmpenho, setFormEmpenho] = useState('');
   const [formNumeroNota, setFormNumeroNota] = useState('');
-  const [formDataTabela, setFormDataTabela] = useState(() => {
-    const hoje = new Date();
-    return formatarDataBrasil(hoje);
-  });
+  
+  const [formDataTabela, setFormDataTabela] = useState('');
   
   const [itensCeasa, setItensCeasa] = useState<ItemNota[]>([]);
   const [setupCategoria, setSetupCategoria] = useState('');
@@ -704,10 +667,13 @@ export default function NovaConferenciaPage() {
     .sort((a, b) => a.nome.localeCompare(b.nome))
     .map(p => ({ value: p.id.toString(), label: p.nome, discount: p.desconto }));
 
-  // Verificar conexão com Supabase
+  // Verificar conexão com Supabase de forma segura
   useEffect(() => {
     const verificarConexao = async () => {
       try {
+        if (typeof supabase === 'undefined' || !supabase) {
+          throw new Error("Supabase cliente indefinido");
+        }
         const { error } = await supabase.from('ceasa_precos').select('count', { count: 'exact', head: true });
         if (error) throw error;
         setSupabaseStatus('connected');
@@ -720,29 +686,46 @@ export default function NovaConferenciaPage() {
     verificarConexao();
   }, []);
 
-  // Carregar nota em andamento
+  // Carregar nota em andamento COM TRY CATCH (BLINDAGEM CONTRA CRASH DE LOCALSTORAGE)
   useEffect(() => {
-    const notaEmAndamento = localStorage.getItem('nota_atual_hortifruti');
-    if (notaEmAndamento) {
-      const nota = JSON.parse(notaEmAndamento);
-      setNotaAtual(nota);
-      setIsEditing(true);
-      setEditingNotaId(nota.id);
-      setFormEmpresa(nota.empresa);
-      setFormEmpenho(nota.empenho);
-      setFormNumeroNota(nota.numeroNota);
-      setFormDataTabela(nota.dataTabelaCeasa);
-      setItensCeasa(nota.itens);
+    try {
+      const hojeStr = formatarDataBrasil(new Date());
+      setFormDataTabela(hojeStr);
+
+      const notaEmAndamento = localStorage.getItem('nota_atual_hortifruti');
+      if (notaEmAndamento) {
+        const nota = JSON.parse(notaEmAndamento);
+        if (nota && typeof nota === 'object') {
+          setNotaAtual(nota);
+          setIsEditing(true);
+          setEditingNotaId(nota.id || null);
+          setFormEmpresa(nota.empresa || '');
+          setFormEmpenho(nota.empenho || '');
+          setFormNumeroNota(nota.numeroNota || '');
+          setFormDataTabela(nota.dataTabelaCeasa || hojeStr);
+          setItensCeasa(nota.itens || []);
+        }
+      }
+    } catch (e) {
+      console.warn("⚠️ Cache de nota corrompido. Limpando sujeira do navegador...", e);
+      localStorage.removeItem('nota_atual_hortifruti');
+    } finally {
+      setIsLoaded(true);
     }
-    setIsLoaded(true);
   }, []);
 
   // Salvar nota em andamento
   useEffect(() => {
-    if (isLoaded && notaAtual) {
-      localStorage.setItem('nota_atual_hortifruti', JSON.stringify(notaAtual));
-    } else if (isLoaded && !notaAtual) {
-      localStorage.removeItem('nota_atual_hortifruti');
+    if (isLoaded) {
+      try {
+        if (notaAtual) {
+          localStorage.setItem('nota_atual_hortifruti', JSON.stringify(notaAtual));
+        } else {
+          localStorage.removeItem('nota_atual_hortifruti');
+        }
+      } catch (e) {
+        console.error("Erro ao salvar cache no navegador", e);
+      }
     }
   }, [notaAtual, isLoaded]);
 
@@ -750,17 +733,21 @@ export default function NovaConferenciaPage() {
   useEffect(() => {
     const carregarPrecosDoBanco = async () => {
       if (supabaseStatus === 'connected' && formDataTabela) {
-        const precos = await buscarPrecosCeasa(formatarDataISO(formDataTabela));
-        if (precos && precos.length > 0) {
-          setPrecosCeasa(precos);
-          showToast(`${precos.length} preços carregados do banco de dados!`, 'info');
+        try {
+          const precos = await buscarPrecosCeasa(formatarDataISO(formDataTabela));
+          if (precos && precos.length > 0) {
+            setPrecosCeasa(precos);
+            showToast(`${precos.length} preços carregados do banco de dados!`, 'info');
+          }
+        } catch (e) {
+          console.error("Erro ao carregar preços do DB", e);
         }
       }
     };
     carregarPrecosDoBanco();
   }, [formDataTabela, supabaseStatus]);
 
-  // 🔥 1. Resetar campos ao mudar a CATEGORIA
+  // Resetar campos ao mudar a CATEGORIA
   useEffect(() => {
     setSetupProdutoId('');
     setSetupKgCaixa('');
@@ -769,9 +756,8 @@ export default function NovaConferenciaPage() {
     setTimeout(() => setResetEffect(false), 500);
   }, [setupCategoria]);
 
-  // 🔥 2. BUSCAR PREÇO AUTOMATICAMENTE E ZERAR SE NECESSÁRIO
+  // BUSCAR PREÇO AUTOMATICAMENTE E ZERAR SE NECESSÁRIO
   useEffect(() => {
-    // Se o usuário limpar/mudar o produto e ele ficar vazio, zera o peso e valor imediatamente
     if (!setupProdutoId) {
       setSetupKgCaixa('');
       setSetupValorCaixa('');
@@ -783,30 +769,20 @@ export default function NovaConferenciaPage() {
     const produtoSelecionado = PRODUTOS_CONTRATO.find(p => p.id.toString() === setupProdutoId);
     if (!produtoSelecionado) return;
     
-    console.log(`🔍 Buscando preço para: ${produtoSelecionado.categoria} - ${produtoSelecionado.nome}`);
-    
-    // FUNÇÃO DE MATCH COM PONTUAÇÃO (PRIORIDADE POR ESPECIFICIDADE)
     const encontrarPreco = () => {
       const categoriaNorm = normalizarTextoMatch(produtoSelecionado.categoria);
       const nomeNorm = normalizarTextoMatch(produtoSelecionado.nome);
 
-      // Filtra apenas produtos da mesma categoria
       const candidatos = precosCeasa.filter(p =>
         normalizarTextoMatch(p.categoria) === categoriaNorm
       );
 
       if (candidatos.length === 0) return null;
 
-      // 1. MATCH EXATO COMPLETO (PRIORIDADE MÁXIMA)
-      const exato = candidatos.find(p =>
-        normalizarTextoMatch(p.tipo) === nomeNorm
-      );
+      const exato = candidatos.find(p => normalizarTextoMatch(p.tipo) === nomeNorm);
       if (exato) return exato;
 
-      // 2. MATCH POR PALAVRAS COM PONTUAÇÃO
       const palavrasBusca = nomeNorm.split(' ');
-      
-      // Sufixos importantes para pontuação extra
       const sufixosImportantes = ['AA', 'A', 'B', 'C', 'PRIMEIRA', 'SEGUNDA', 'TERCEIRA', 'EXTRA', 'MEDIA', 'GRANDE'];
       
       let melhorMatch = null;
@@ -818,29 +794,17 @@ export default function NovaConferenciaPage() {
         
         let score = 0;
         
-        // Conta quantas palavras da busca existem no tipo
         for (const palavra of palavrasBusca) {
-          if (palavrasTipo.includes(palavra)) {
-            score++;
-          }
+          if (palavrasTipo.includes(palavra)) score++;
         }
         
-        // BÔNUS: match exato do tipo inteiro contém a busca
-        if (tipo.includes(nomeNorm)) {
-          score += 2;
-        }
+        if (tipo.includes(nomeNorm)) score += 2;
         
-        // BÔNUS: match de sufixos importantes (AA, A, EXTRA, etc)
         for (const sufixo of sufixosImportantes) {
-          if (nomeNorm.includes(sufixo) && tipo.includes(sufixo)) {
-            score += 3;
-          }
+          if (nomeNorm.includes(sufixo) && tipo.includes(sufixo)) score += 3;
         }
         
-        // BÔNUS: quanto mais específico, maior o score
-        if (tipo.length > nomeNorm.length && tipo.includes(nomeNorm)) {
-          score += 1;
-        }
+        if (tipo.length > nomeNorm.length && tipo.includes(nomeNorm)) score += 1;
         
         if (score > melhorScore) {
           melhorScore = score;
@@ -848,11 +812,7 @@ export default function NovaConferenciaPage() {
         }
       }
       
-      // SÓ RETORNA SE TIVER PONTUAÇÃO MÍNIMA (pelo menos 1 palavra match)
-      if (melhorScore >= 1) {
-        console.log(`📊 Match: "${nomeNorm}" → "${melhorMatch?.tipo}" (score: ${melhorScore})`);
-        return melhorMatch;
-      }
+      if (melhorScore >= 1) return melhorMatch;
       
       return null;
     };
@@ -860,17 +820,12 @@ export default function NovaConferenciaPage() {
     const precoEncontrado = encontrarPreco();
     
     if (precoEncontrado) {
-      console.log(`✅ Preço encontrado: ${precoEncontrado.tipo} | ${precoEncontrado.kgEmbalagem}kg | ${formatarMoeda(precoEncontrado.valorMc)}`);
       setSetupKgCaixa(precoEncontrado.kgEmbalagem.toString().replace('.', ','));
       setSetupValorCaixa(precoEncontrado.valorMc.toString().replace('.', ','));
       showToast(`Preço carregado: ${precoEncontrado.kgEmbalagem}kg por ${formatarMoeda(precoEncontrado.valorMc)}`, 'info');
     } else {
-      console.warn(`⚠️ Preço não encontrado para: ${produtoSelecionado.categoria} - ${produtoSelecionado.nome}`);
-      
-      // 🔥 ZERA O PESO E O VALOR SE O PREÇO NÃO FOR ENCONTRADO
       setSetupKgCaixa('');
       setSetupValorCaixa('');
-      
       showToast(`Preço não encontrado para ${produtoSelecionado.nome}`, 'error');
     }
   }, [setupCategoria, setupProdutoId, precosCeasa]);
@@ -878,15 +833,12 @@ export default function NovaConferenciaPage() {
   const showToast = (message: string, type: string) => setToast({ message, type });
 
   const handlePDFDataExtracted = async (produtos: PrecoCeasa[]) => {
-    console.log('📦 Produtos CEASA recebidos:', produtos.length);
     setPrecosCeasa(produtos);
-    
     if (supabaseStatus === 'connected') {
       try {
         await salvarPrecosCeasa(formatarDataISO(formDataTabela), produtos);
         showToast(`${produtos.length} preços salvos no banco de dados!`, 'success');
       } catch (error) {
-        console.error('❌ Erro ao salvar no Supabase:', error);
         showToast('Erro ao salvar no banco, mas dados estão no navegador', 'error');
       }
     } else {
@@ -942,29 +894,32 @@ export default function NovaConferenciaPage() {
     showToast('Item removido', 'info');
   };
 
-  // Verifica duplicidade
   const verificarNotaDuplicada = async (empenho: string, numeroNota: string, notaIdIgnorar?: string): Promise<boolean> => {
-    const notasSalvas = localStorage.getItem('banco_notas_hortifruti');
-    if (notasSalvas) {
-      const bancoNotas = JSON.parse(notasSalvas);
-      const existe = bancoNotas.some((n: NotaFiscal) => 
-        n.empenho === empenho && 
-        n.numeroNota === numeroNota &&
-        n.id !== notaIdIgnorar
-      );
-      if (existe) return true;
-    }
-    
-    if (supabaseStatus === 'connected') {
-      const { data, error } = await supabase
-        .from('notas_fiscais')
-        .select('id')
-        .eq('empenho', empenho)
-        .eq('numero_nota', numeroNota)
-        .neq('id', notaIdIgnorar || '')
-        .maybeSingle();
+    try {
+      const notasSalvas = localStorage.getItem('banco_notas_hortifruti');
+      if (notasSalvas) {
+        const bancoNotas = JSON.parse(notasSalvas);
+        const existe = bancoNotas.some((n: NotaFiscal) => 
+          n.empenho === empenho && 
+          n.numeroNota === numeroNota &&
+          n.id !== notaIdIgnorar
+        );
+        if (existe) return true;
+      }
       
-      if (!error && data) return true;
+      if (supabaseStatus === 'connected' && supabase) {
+        const { data, error } = await supabase
+          .from('notas_fiscais')
+          .select('id')
+          .eq('empenho', empenho)
+          .eq('numero_nota', numeroNota)
+          .neq('id', notaIdIgnorar || '')
+          .maybeSingle();
+        
+        if (!error && data) return true;
+      }
+    } catch (e) {
+      console.warn("Erro ao verificar duplicidade", e);
     }
     
     return false;
@@ -1000,7 +955,7 @@ export default function NovaConferenciaPage() {
   };
 
   const handlePrecoNotaChange = (id: string, valorDigitado: string) => {
-    if (!notaAtual) return;
+    if (!notaAtual || !notaAtual.itens) return;
     
     const valorSanitizado = valorDigitado.replace(/[^0-9,]/g, '');
     const precoNumerico = parseFloat(valorSanitizado.replace(',', '.')) || 0;
@@ -1037,7 +992,7 @@ export default function NovaConferenciaPage() {
   };
 
   const handleQuantidadeChange = (id: string, valorDigitado: string) => {
-    if (!notaAtual) return;
+    if (!notaAtual || !notaAtual.itens) return;
 
     const valorSanitizado = valorDigitado.replace(/[^0-9,]/g, '');
     const qtdNumerica = parseFloat(valorSanitizado.replace(',', '.')) || 0;
@@ -1075,7 +1030,7 @@ export default function NovaConferenciaPage() {
   };
 
   const finalizarNota = async () => {
-    if (!notaAtual) return;
+    if (!notaAtual || !notaAtual.itens) return;
     
     setIsSaving(true);
     
@@ -1104,7 +1059,7 @@ export default function NovaConferenciaPage() {
       
       localStorage.setItem('banco_notas_hortifruti', JSON.stringify(bancoAtualizado));
       
-      if (supabaseStatus === 'connected') {
+      if (supabaseStatus === 'connected' && supabase) {
         try {
           const { error } = await supabase
             .from('notas_fiscais')
@@ -1124,7 +1079,6 @@ export default function NovaConferenciaPage() {
             });
           
           if (error) throw error;
-          console.log('✅ Nota salva/atualizada no Supabase (UPSERT)');
         } catch (supabaseError) {
           console.error('⚠️ Erro no Supabase, mas nota salva localmente:', supabaseError);
         }
@@ -1140,7 +1094,9 @@ export default function NovaConferenciaPage() {
       setFormNumeroNota('');
       setItensCeasa([]);
       localStorage.removeItem('nota_atual_hortifruti');
+      
       router.push('/dashboard/notas');
+      
     } catch (error) {
       console.error('❌ Erro ao salvar nota:', error);
       showToast('Erro ao salvar nota, tente novamente', 'error');
@@ -1165,7 +1121,6 @@ export default function NovaConferenciaPage() {
 
   const notaTemErro = notaAtual?.statusValidacao === 'divergente';
   
-  // 🔥 VALIDAÇÃO DO FORMULÁRIO DE ADIÇÃO
   const isFormValido = setupCategoria?.trim() !== '' && 
     setupProdutoId?.trim() !== '' && 
     parseFloat(setupKgCaixa.replace(',', '.')) > 0 && 
@@ -1494,7 +1449,7 @@ export default function NovaConferenciaPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {notaAtual.itens.map((item) => (
+                  {notaAtual?.itens?.map((item) => (
                     <tr 
                       key={item.id} 
                       className={`transition-all ${
