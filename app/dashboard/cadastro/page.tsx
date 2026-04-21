@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { createPortal } from 'react-dom';
-import { v4 as uuidv4 } from 'uuid';
 import { 
   Plus, 
   Save, 
@@ -337,7 +335,7 @@ const validarPreco = (valorNota: number, valorCeasa: number): { status: 'ok' | '
   };
 };
 
-// ==================== SELECTOR PERSONALIZADO (A PROVA DE FALHAS) ====================
+// ==================== SELECTOR PERSONALIZADO (SEM PORTAL - 100% SEGURO) ====================
 interface PremiumSelectProps {
   value: string;
   onChange: (value: string) => void;
@@ -350,17 +348,11 @@ interface PremiumSelectProps {
 const PremiumSelect = ({ value, onChange, options = [], placeholder, icon, disabled }: PremiumSelectProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
-  const [isMounted, setIsMounted] = useState(false);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  
-  // Garantia do Next.js para Portals: só renderiza depois que o Client montar
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
   
   const selectedOption = Array.isArray(options) ? options.find(opt => opt.value === value) : undefined;
   
@@ -371,10 +363,12 @@ const PremiumSelect = ({ value, onChange, options = [], placeholder, icon, disab
   const updatePosition = () => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      setDropdownPosition({
+      setDropdownStyle({
+        position: 'fixed',
         top: rect.bottom + window.scrollY + 4,
         left: rect.left + window.scrollX,
         width: rect.width,
+        zIndex: 9999,
       });
     }
   };
@@ -452,16 +446,12 @@ const PremiumSelect = ({ value, onChange, options = [], placeholder, icon, disab
         <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
-      {isOpen && !disabled && isMounted && typeof document !== 'undefined' && createPortal(
+      {/* ✅ SEM PORTAL - RENDER DIRETO NA ÁRVORE COM POSITION FIXED */}
+      {isOpen && !disabled && (
         <div 
           ref={dropdownRef}
-          className="fixed z-[9999] bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden"
-          style={{
-            top: dropdownPosition.top,
-            left: dropdownPosition.left,
-            width: dropdownPosition.width,
-            maxWidth: 'calc(100vw - 32px)',
-          }}
+          style={dropdownStyle}
+          className="bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden"
         >
           <div className="p-2 border-b border-slate-100">
             <div className="relative">
@@ -499,8 +489,7 @@ const PremiumSelect = ({ value, onChange, options = [], placeholder, icon, disab
               ))
             )}
           </div>
-        </div>,
-        document.body
+        </div>
       )}
     </>
   );
@@ -617,6 +606,16 @@ const Toast = ({ message, type, onClose }: { message: string; type: string; onCl
   );
 };
 
+// ==================== FUNÇÃO UUID SEGURA (SEM DEPENDÊNCIA EXTERNA) ====================
+const gerarIdUnico = (): string => {
+  // ✅ Usando crypto.randomUUID() que é nativo e seguro
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback para ambientes sem crypto
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
+
 // ==================== PÁGINA DE CADASTRO ====================
 export default function NovaConferenciaPage() {
   const router = useRouter();
@@ -642,6 +641,12 @@ export default function NovaConferenciaPage() {
   const [precosCeasa, setPrecosCeasa] = useState<PrecoCeasa[]>([]);
   const [resetEffect, setResetEffect] = useState(false);
   const [supabaseStatus, setSupabaseStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
+  const [isMounted, setIsMounted] = useState(false);
+
+  // ✅ SEGURANÇA: Marcar que o componente montou no client
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Listas Protegidas contra componentes nulos
   const categoriasDisponiveis = Array.from(new Set(PRODUTOS_CONTRATO.filter(p => p?.categoria).map(p => p.categoria))).sort();
@@ -650,11 +655,14 @@ export default function NovaConferenciaPage() {
     .sort((a, b) => (a?.nome || '').localeCompare(b?.nome || ''))
     .map(p => ({ value: p.id.toString(), label: p.nome || 'Sem nome', discount: p.desconto }));
 
-  // Verificar conexão com Supabase de forma 100% segura
+  // ✅ Verificar conexão com Supabase de forma 100% segura
   useEffect(() => {
+    if (!isMounted) return;
+    
     let isSubscribed = true;
     const verificarConexao = async () => {
       try {
+        if (typeof window === 'undefined') return;
         if (typeof supabase === 'undefined' || !supabase) {
           throw new Error("Supabase cliente indefinido");
         }
@@ -667,10 +675,12 @@ export default function NovaConferenciaPage() {
     };
     verificarConexao();
     return () => { isSubscribed = false; };
-  }, []);
+  }, [isMounted]);
 
-  // Carregar nota em andamento COM TRY CATCH REFORÇADO (A PROVA DE CRASH)
+  // ✅ Carregar nota em andamento COM TRY CATCH REFORÇADO (A PROVA DE CRASH)
   useEffect(() => {
+    if (!isMounted) return;
+    
     let isSubscribed = true;
     try {
       const hojeStr = formatarDataBrasil(new Date());
@@ -697,9 +707,9 @@ export default function NovaConferenciaPage() {
       if (isSubscribed) setIsLoaded(true);
     }
     return () => { isSubscribed = false; };
-  }, []);
+  }, [isMounted]);
 
-  // Salvar nota em andamento no cache
+  // ✅ Salvar nota em andamento no cache
   useEffect(() => {
     if (isLoaded && typeof window !== 'undefined') {
       try {
@@ -714,8 +724,10 @@ export default function NovaConferenciaPage() {
     }
   }, [notaAtual, isLoaded]);
 
-  // Carregar preços da CEASA seguros
+  // ✅ Carregar preços da CEASA seguros
   useEffect(() => {
+    if (!isMounted) return;
+    
     let isSubscribed = true;
     const carregarPrecosDoBanco = async () => {
       if (supabaseStatus === 'connected' && formDataTabela) {
@@ -734,9 +746,9 @@ export default function NovaConferenciaPage() {
     };
     carregarPrecosDoBanco();
     return () => { isSubscribed = false; };
-  }, [formDataTabela, supabaseStatus]);
+  }, [formDataTabela, supabaseStatus, isMounted]);
 
-  // Resetar campos ao mudar a CATEGORIA
+  // ✅ Resetar campos ao mudar a CATEGORIA
   useEffect(() => {
     setSetupProdutoId('');
     setSetupKgCaixa('');
@@ -746,7 +758,7 @@ export default function NovaConferenciaPage() {
     return () => clearTimeout(t);
   }, [setupCategoria]);
 
-  // BUSCAR PREÇO AUTOMATICAMENTE E ZERAR SE NECESSÁRIO
+  // ✅ BUSCAR PREÇO AUTOMATICAMENTE E ZERAR SE NECESSÁRIO
   useEffect(() => {
     if (!setupProdutoId) {
       setSetupKgCaixa('');
@@ -853,7 +865,7 @@ export default function NovaConferenciaPage() {
     const nomeCompleto = `${produto.categoria || ''} - ${produto.nome || ''}`;
 
     const novoItem: ItemNota = {
-      id: uuidv4(),
+      id: gerarIdUnico(),
       produtoId: produto.id,
       produtoNome: nomeCompleto,
       desconto: produto.desconto || 0,
@@ -926,7 +938,7 @@ export default function NovaConferenciaPage() {
       return;
     }
     
-    const id = isEditing && editingNotaId ? editingNotaId : uuidv4();
+    const id = isEditing && editingNotaId ? editingNotaId : gerarIdUnico();
 
     const novaNota: NotaFiscal = {
       id: id,
@@ -1106,10 +1118,12 @@ export default function NovaConferenciaPage() {
     !isNaN(kgFloat) && kgFloat > 0 && 
     !isNaN(vlFloat) && vlFloat > 0;
 
-  if (!isLoaded) {
+  // ✅ SEGURANÇA: Loading state para garantir que o componente só renderiza no client
+  if (!isMounted || !isLoaded) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="w-8 h-8 border-2 border-emerald-200 border-t-emerald-500 rounded-full animate-spin"></div>
+        <p className="ml-3 text-sm text-slate-500">Carregando sistema...</p>
       </div>
     );
   }
