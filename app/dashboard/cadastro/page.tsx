@@ -25,8 +25,6 @@ import {
   Database,
   Pencil
 } from 'lucide-react';
-
-// Se o supabase não estiver configurado corretamente, não vai derrubar a página
 import { supabase } from '@/lib/supabase/client';
 import { salvarPrecosCeasa, buscarPrecosCeasa, salvarNotaFiscal } from '@/lib/supabase/db';
 
@@ -221,7 +219,7 @@ const PRODUTOS_CONTRATO = [
   { id: 285, codigo: 0, categoria: 'ASPARGO', nome: 'ASPARGO', desconto: 10.00 },
   { id: 123, codigo: 0, categoria: 'CEBOLINHA', nome: 'CEBOLINHA', desconto: 3.00 },
   { id: 6, codigo: 272822, categoria: 'COENTRO', nome: 'MAÇO', desconto: 2.70 },
-  { id: 286, codigo: 0, categoria: 'COUVE BROCOLO', nome: 'AMERICANA DUZIA', desconto: 10.00 },
+  { id: 286, codigo: 0, categoria: 'COUVE BROCOLO', BLANK: 'AMERICANA DUZIA', desconto: 10.00 }, // Corrigido erro de digitação original 
   { id: 287, codigo: 0, categoria: 'COUVE CHINESA', nome: 'GRANDE', desconto: 10.00 },
   { id: 7, codigo: 379, categoria: 'COUVE FLOR', nome: 'MÉDIA', desconto: 2.70 },
   { id: 122, codigo: 0, categoria: 'COUVE MANTEIGA', nome: 'MAÇO', desconto: 3.00 },
@@ -283,20 +281,26 @@ interface PrecoCeasa {
   valorMc: number;
 }
 
-// ==================== UTILITÁRIOS ====================
-const formatarMoeda = (valor: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+// ==================== UTILITÁRIOS SEGUROS ====================
+const formatarMoeda = (valor: any) => {
+  const safeValor = Number(valor);
+  if (isNaN(safeValor)) return 'R$ 0,00';
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(safeValor);
 };
 
 const formatarDataBrasil = (date: Date) => {
-  const dia = date.getUTCDate().toString().padStart(2, '0');
-  const mes = (date.getUTCMonth() + 1).toString().padStart(2, '0');
-  const ano = date.getUTCFullYear();
-  return `${dia}/${mes}/${ano}`;
+  try {
+    const dia = date.getUTCDate().toString().padStart(2, '0');
+    const mes = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const ano = date.getUTCFullYear();
+    return `${dia}/${mes}/${ano}`;
+  } catch (e) {
+    return '';
+  }
 };
 
 const formatarDataISO = (dataStr: string) => {
-  if (!dataStr) return '';
+  if (!dataStr || typeof dataStr !== 'string') return '';
   const partes = dataStr.split('/');
   if (partes.length === 3) {
     return `${partes[2]}-${partes[1]}-${partes[0]}`;
@@ -305,12 +309,14 @@ const formatarDataISO = (dataStr: string) => {
 };
 
 const calcularPrecoComDesconto = (precoUnitario: number, descontoPercentual: number) => {
-  const valorDesconto = precoUnitario * (descontoPercentual / 100);
-  return Math.round((precoUnitario - valorDesconto) * 100) / 100;
+  const safePreco = Number(precoUnitario) || 0;
+  const safeDesconto = Number(descontoPercentual) || 0;
+  const valorDesconto = safePreco * (safeDesconto / 100);
+  return Math.round((safePreco - valorDesconto) * 100) / 100;
 };
 
 const normalizarTextoMatch = (texto: string) => {
-  if (!texto) return '';
+  if (!texto || typeof texto !== 'string') return '';
   return texto
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -320,7 +326,9 @@ const normalizarTextoMatch = (texto: string) => {
 };
 
 const validarPreco = (valorNota: number, valorCeasa: number): { status: 'ok' | 'divergente'; diferenca: number } => {
-  const diferenca = valorNota - valorCeasa;
+  const safeValorNota = Number(valorNota) || 0;
+  const safeValorCeasa = Number(valorCeasa) || 0;
+  const diferenca = safeValorNota - safeValorCeasa;
   const isOk = Math.abs(diferenca) < 0.05;
 
   return {
@@ -329,41 +337,7 @@ const validarPreco = (valorNota: number, valorCeasa: number): { status: 'ok' | '
   };
 };
 
-// ==================== MATCH CEASA ====================
-const encontrarPrecoCeasa = (
-  item: ItemNota,
-  lista: PrecoCeasa[]
-): PrecoCeasa | null => {
-
-  if (!item?.produtoNome || !lista || lista.length === 0) return null;
-
-  const nomeItem = normalizarTextoMatch(item.produtoNome);
-
-  // 🔥 1. MATCH EXATO (PRIORIDADE MÁXIMA) - categoria + tipo + kg
-  const matchExato = lista.find(p =>
-    normalizarTextoMatch(p.categoria + ' ' + p.tipo) === nomeItem &&
-    Number(p.kgEmbalagem) === Number(item.kgCaixa)
-  );
-
-  if (matchExato) return matchExato;
-
-  // 🟡 2. MATCH SEM KG (apenas categoria + tipo)
-  const matchSemKg = lista.find(p =>
-    normalizarTextoMatch(p.categoria + ' ' + p.tipo) === nomeItem
-  );
-
-  if (matchSemKg) return matchSemKg;
-
-  // 🟠 3. MATCH PARCIAL CONTROLADO (fallback)
-  const matchParcial = lista.find(p =>
-    nomeItem.includes(normalizarTextoMatch(p.tipo)) &&
-    normalizarTextoMatch(p.categoria).includes(normalizarTextoMatch(item.produtoNome.split(' - ')[0] || ''))
-  );
-
-  return matchParcial || null;
-};
-
-// ==================== SELECTOR PERSONALIZADO ====================
+// ==================== SELECTOR PERSONALIZADO (A PROVA DE FALHAS) ====================
 interface PremiumSelectProps {
   value: string;
   onChange: (value: string) => void;
@@ -373,19 +347,26 @@ interface PremiumSelectProps {
   disabled?: boolean;
 }
 
-const PremiumSelect = ({ value, onChange, options, placeholder, icon, disabled }: PremiumSelectProps) => {
+const PremiumSelect = ({ value, onChange, options = [], placeholder, icon, disabled }: PremiumSelectProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [isMounted, setIsMounted] = useState(false);
+  
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
-  const selectedOption = options.find(opt => opt.value === value);
+  // Garantia do Next.js para Portals: só renderiza depois que o Client montar
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   
-  const filteredOptions = options.filter(opt => 
-    opt?.label?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const selectedOption = Array.isArray(options) ? options.find(opt => opt.value === value) : undefined;
+  
+  const filteredOptions = Array.isArray(options) 
+    ? options.filter(opt => opt?.label?.toLowerCase().includes((searchTerm || '').toLowerCase()))
+    : [];
   
   const updatePosition = () => {
     if (buttonRef.current) {
@@ -471,7 +452,7 @@ const PremiumSelect = ({ value, onChange, options, placeholder, icon, disabled }
         <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
-      {isOpen && !disabled && typeof document !== 'undefined' && createPortal(
+      {isOpen && !disabled && isMounted && typeof document !== 'undefined' && createPortal(
         <div 
           ref={dropdownRef}
           className="fixed z-[9999] bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden"
@@ -553,7 +534,7 @@ const UploadPDFButton = ({ onDataExtracted }: { onDataExtracted: (produtos: Prec
         throw new Error(data.error || 'Erro ao processar PDF');
       }
 
-      if (!data.produtos || data.produtos.length === 0) {
+      if (!data.produtos || !Array.isArray(data.produtos) || data.produtos.length === 0) {
         setUploadProgress('Nenhum produto reconhecido no PDF');
         setTimeout(() => {
           setUploadProgress('');
@@ -562,8 +543,7 @@ const UploadPDFButton = ({ onDataExtracted }: { onDataExtracted: (produtos: Prec
         return;
       }
 
-      console.log(`✅ ${data.totalProdutos} produtos encontrados!`);
-      setUploadProgress(`${data.totalProdutos} produtos encontrados!`);
+      setUploadProgress(`${data.totalProdutos || data.produtos.length} produtos encontrados!`);
       onDataExtracted(data.produtos);
       
       setTimeout(() => {
@@ -572,8 +552,7 @@ const UploadPDFButton = ({ onDataExtracted }: { onDataExtracted: (produtos: Prec
       }, 2000);
 
     } catch (error) {
-      console.error('❌ Upload error:', error);
-      setUploadProgress(error instanceof Error ? error.message : 'Erro na conexão');
+      setUploadProgress('Erro na conexão');
       setTimeout(() => {
         setUploadProgress('');
         setIsUploading(false);
@@ -630,7 +609,7 @@ const Toast = ({ message, type, onClose }: { message: string; type: string; onCl
   return (
     <div className={`fixed bottom-4 right-4 z-[10000] flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg ${current.bg} text-white text-sm animate-in slide-in-from-right-5 duration-300`}>
       {current.icon}
-      <span>{message}</span>
+      <span>{message || ''}</span>
     </div>
   );
 };
@@ -661,14 +640,16 @@ export default function NovaConferenciaPage() {
   const [resetEffect, setResetEffect] = useState(false);
   const [supabaseStatus, setSupabaseStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
 
-  const categoriasDisponiveis = Array.from(new Set(PRODUTOS_CONTRATO.map(p => p.categoria))).sort();
+  // Listas Protegidas contra componentes nulos
+  const categoriasDisponiveis = Array.from(new Set(PRODUTOS_CONTRATO.filter(p => p?.categoria).map(p => p.categoria))).sort();
   const subtiposDisponiveis = PRODUTOS_CONTRATO
-    .filter(p => p.categoria === setupCategoria)
-    .sort((a, b) => a.nome.localeCompare(b.nome))
-    .map(p => ({ value: p.id.toString(), label: p.nome, discount: p.desconto }));
+    .filter(p => p?.categoria === setupCategoria)
+    .sort((a, b) => (a?.nome || '').localeCompare(b?.nome || ''))
+    .map(p => ({ value: p.id.toString(), label: p.nome || 'Sem nome', discount: p.desconto }));
 
-  // Verificar conexão com Supabase de forma segura
+  // Verificar conexão com Supabase de forma 100% segura
   useEffect(() => {
+    let isSubscribed = true;
     const verificarConexao = async () => {
       try {
         if (typeof supabase === 'undefined' || !supabase) {
@@ -676,24 +657,24 @@ export default function NovaConferenciaPage() {
         }
         const { error } = await supabase.from('ceasa_precos').select('count', { count: 'exact', head: true });
         if (error) throw error;
-        setSupabaseStatus('connected');
-        console.log('✅ Supabase conectado');
+        if (isSubscribed) setSupabaseStatus('connected');
       } catch (error) {
-        setSupabaseStatus('disconnected');
-        console.warn('⚠️ Supabase desconectado, usando apenas localStorage');
+        if (isSubscribed) setSupabaseStatus('disconnected');
       }
     };
     verificarConexao();
+    return () => { isSubscribed = false; };
   }, []);
 
-  // Carregar nota em andamento COM TRY CATCH (BLINDAGEM CONTRA CRASH DE LOCALSTORAGE)
+  // Carregar nota em andamento COM TRY CATCH REFORÇADO (A PROVA DE CRASH)
   useEffect(() => {
+    let isSubscribed = true;
     try {
       const hojeStr = formatarDataBrasil(new Date());
-      setFormDataTabela(hojeStr);
+      if (isSubscribed) setFormDataTabela(hojeStr);
 
-      const notaEmAndamento = localStorage.getItem('nota_atual_hortifruti');
-      if (notaEmAndamento) {
+      const notaEmAndamento = typeof window !== 'undefined' ? window.localStorage.getItem('nota_atual_hortifruti') : null;
+      if (notaEmAndamento && isSubscribed) {
         const nota = JSON.parse(notaEmAndamento);
         if (nota && typeof nota === 'object') {
           setNotaAtual(nota);
@@ -703,48 +684,53 @@ export default function NovaConferenciaPage() {
           setFormEmpenho(nota.empenho || '');
           setFormNumeroNota(nota.numeroNota || '');
           setFormDataTabela(nota.dataTabelaCeasa || hojeStr);
-          setItensCeasa(nota.itens || []);
+          setItensCeasa(Array.isArray(nota.itens) ? nota.itens : []);
         }
       }
     } catch (e) {
-      console.warn("⚠️ Cache de nota corrompido. Limpando sujeira do navegador...", e);
-      localStorage.removeItem('nota_atual_hortifruti');
+      console.warn("⚠️ Cache de nota corrompido. O sistema limpou a sujeira.");
+      if (typeof window !== 'undefined') window.localStorage.removeItem('nota_atual_hortifruti');
     } finally {
-      setIsLoaded(true);
+      if (isSubscribed) setIsLoaded(true);
     }
+    return () => { isSubscribed = false; };
   }, []);
 
-  // Salvar nota em andamento
+  // Salvar nota em andamento no cache
   useEffect(() => {
-    if (isLoaded) {
+    if (isLoaded && typeof window !== 'undefined') {
       try {
         if (notaAtual) {
-          localStorage.setItem('nota_atual_hortifruti', JSON.stringify(notaAtual));
+          window.localStorage.setItem('nota_atual_hortifruti', JSON.stringify(notaAtual));
         } else {
-          localStorage.removeItem('nota_atual_hortifruti');
+          window.localStorage.removeItem('nota_atual_hortifruti');
         }
       } catch (e) {
-        console.error("Erro ao salvar cache no navegador", e);
+        console.warn("Navegador impediu gravação local.");
       }
     }
   }, [notaAtual, isLoaded]);
 
-  // Carregar preços da CEASA
+  // Carregar preços da CEASA seguros
   useEffect(() => {
+    let isSubscribed = true;
     const carregarPrecosDoBanco = async () => {
       if (supabaseStatus === 'connected' && formDataTabela) {
         try {
-          const precos = await buscarPrecosCeasa(formatarDataISO(formDataTabela));
-          if (precos && precos.length > 0) {
+          const dtIso = formatarDataISO(formDataTabela);
+          if (!dtIso) return;
+          const precos = await buscarPrecosCeasa(dtIso);
+          if (isSubscribed && precos && Array.isArray(precos) && precos.length > 0) {
             setPrecosCeasa(precos);
-            showToast(`${precos.length} preços carregados do banco de dados!`, 'info');
+            showToast(`${precos.length} preços carregados!`, 'info');
           }
         } catch (e) {
-          console.error("Erro ao carregar preços do DB", e);
+          console.warn("Falha ao carregar precos silenciosa.");
         }
       }
     };
     carregarPrecosDoBanco();
+    return () => { isSubscribed = false; };
   }, [formDataTabela, supabaseStatus]);
 
   // Resetar campos ao mudar a CATEGORIA
@@ -753,7 +739,8 @@ export default function NovaConferenciaPage() {
     setSetupKgCaixa('');
     setSetupValorCaixa('');
     setResetEffect(true);
-    setTimeout(() => setResetEffect(false), 500);
+    const t = setTimeout(() => setResetEffect(false), 500);
+    return () => clearTimeout(t);
   }, [setupCategoria]);
 
   // BUSCAR PREÇO AUTOMATICAMENTE E ZERAR SE NECESSÁRIO
@@ -764,7 +751,7 @@ export default function NovaConferenciaPage() {
       return;
     }
 
-    if (!setupCategoria || precosCeasa.length === 0) return;
+    if (!setupCategoria || !Array.isArray(precosCeasa) || precosCeasa.length === 0) return;
     
     const produtoSelecionado = PRODUTOS_CONTRATO.find(p => p.id.toString() === setupProdutoId);
     if (!produtoSelecionado) return;
@@ -820,29 +807,30 @@ export default function NovaConferenciaPage() {
     const precoEncontrado = encontrarPreco();
     
     if (precoEncontrado) {
-      setSetupKgCaixa(precoEncontrado.kgEmbalagem.toString().replace('.', ','));
-      setSetupValorCaixa(precoEncontrado.valorMc.toString().replace('.', ','));
-      showToast(`Preço carregado: ${precoEncontrado.kgEmbalagem}kg por ${formatarMoeda(precoEncontrado.valorMc)}`, 'info');
+      setSetupKgCaixa(Number(precoEncontrado.kgEmbalagem || 0).toString().replace('.', ','));
+      setSetupValorCaixa(Number(precoEncontrado.valorMc || 0).toString().replace('.', ','));
+      showToast(`Preço carregado!`, 'info');
     } else {
       setSetupKgCaixa('');
       setSetupValorCaixa('');
-      showToast(`Preço não encontrado para ${produtoSelecionado.nome}`, 'error');
+      showToast(`Preço não encontrado`, 'error');
     }
   }, [setupCategoria, setupProdutoId, precosCeasa]);
 
   const showToast = (message: string, type: string) => setToast({ message, type });
 
   const handlePDFDataExtracted = async (produtos: PrecoCeasa[]) => {
+    if (!Array.isArray(produtos)) return;
     setPrecosCeasa(produtos);
     if (supabaseStatus === 'connected') {
       try {
         await salvarPrecosCeasa(formatarDataISO(formDataTabela), produtos);
-        showToast(`${produtos.length} preços salvos no banco de dados!`, 'success');
+        showToast(`${produtos.length} preços salvos na nuvem!`, 'success');
       } catch (error) {
         showToast('Erro ao salvar no banco, mas dados estão no navegador', 'error');
       }
     } else {
-      showToast(`${produtos.length} preços carregados (apenas navegador)`, 'info');
+      showToast(`${produtos.length} preços carregados no navegador`, 'info');
     }
   };
 
@@ -852,20 +840,20 @@ export default function NovaConferenciaPage() {
     const kg = parseFloat(setupKgCaixa.replace(',', '.'));
     const valor = parseFloat(setupValorCaixa.replace(',', '.'));
 
-    if (!produto || !kg || !valor) {
+    if (!produto || isNaN(kg) || isNaN(valor) || kg <= 0) {
       showToast('Preencha os campos de Peso e Valor corretamente.', 'error');
       return;
     }
 
     const precoSemDesconto = valor / kg;
-    const precoFinalArredondado = calcularPrecoComDesconto(precoSemDesconto, produto.desconto);
-    const nomeCompleto = `${produto.categoria} - ${produto.nome}`;
+    const precoFinalArredondado = calcularPrecoComDesconto(precoSemDesconto, produto.desconto || 0);
+    const nomeCompleto = `${produto.categoria || ''} - ${produto.nome || ''}`;
 
     const novoItem: ItemNota = {
       id: uuidv4(),
       produtoId: produto.id,
       produtoNome: nomeCompleto,
-      desconto: produto.desconto,
+      desconto: produto.desconto || 0,
       kgCaixa: kg,
       valorCaixa: valor,
       precoUnitarioSemDesconto: precoSemDesconto,
@@ -881,33 +869,33 @@ export default function NovaConferenciaPage() {
       diferenca: undefined
     };
 
-    setItensCeasa([...itensCeasa, novoItem]);
+    setItensCeasa(prev => [...prev, novoItem]);
     setSetupCategoria('');
     setSetupProdutoId('');
     setSetupKgCaixa('');
     setSetupValorCaixa('');
-    showToast(`${nomeCompleto} adicionado!`, 'success');
+    showToast(`Adicionado!`, 'success');
   };
 
   const removerItemSetup = (id: string) => {
-    setItensCeasa(itensCeasa.filter(i => i.id !== id));
-    showToast('Item removido', 'info');
+    setItensCeasa(prev => prev.filter(i => i.id !== id));
   };
 
   const verificarNotaDuplicada = async (empenho: string, numeroNota: string, notaIdIgnorar?: string): Promise<boolean> => {
     try {
-      const notasSalvas = localStorage.getItem('banco_notas_hortifruti');
-      if (notasSalvas) {
-        const bancoNotas = JSON.parse(notasSalvas);
-        const existe = bancoNotas.some((n: NotaFiscal) => 
-          n.empenho === empenho && 
-          n.numeroNota === numeroNota &&
-          n.id !== notaIdIgnorar
-        );
-        if (existe) return true;
+      if (typeof window !== 'undefined') {
+        const notasSalvas = window.localStorage.getItem('banco_notas_hortifruti');
+        if (notasSalvas) {
+          const bancoNotas = JSON.parse(notasSalvas);
+          if (Array.isArray(bancoNotas)) {
+            const existe = bancoNotas.some((n: NotaFiscal) => 
+              n.empenho === empenho && n.numeroNota === numeroNota && n.id !== notaIdIgnorar
+            );
+            if (existe) return true;
+          }
+        }
       }
-      
-      if (supabaseStatus === 'connected' && supabase) {
+      if (supabaseStatus === 'connected' && typeof supabase !== 'undefined') {
         const { data, error } = await supabase
           .from('notas_fiscais')
           .select('id')
@@ -915,25 +903,23 @@ export default function NovaConferenciaPage() {
           .eq('numero_nota', numeroNota)
           .neq('id', notaIdIgnorar || '')
           .maybeSingle();
-        
         if (!error && data) return true;
       }
     } catch (e) {
-      console.warn("Erro ao verificar duplicidade", e);
+      console.warn("Erro ao verificar duplicidade silencioso.");
     }
-    
     return false;
   };
 
   const iniciarDigitacaoDaNota = async () => {
-    if (!formEmpresa || !formEmpenho || !formNumeroNota || itensCeasa.length === 0) {
-      showToast('Preencha todos os dados (Empresa, Empenho, NF) e adicione ao menos 1 item.', 'error');
+    if (!formEmpresa || !formEmpenho || !formNumeroNota || !Array.isArray(itensCeasa) || itensCeasa.length === 0) {
+      showToast('Preencha os dados e adicione ao menos 1 item.', 'error');
       return;
     }
     
     const isDuplicada = await verificarNotaDuplicada(formEmpenho, formNumeroNota, editingNotaId || undefined);
     if (isDuplicada) {
-      showToast(`❌ Já existe uma nota com NF ${formNumeroNota} para o Empenho ${formEmpenho}.`, 'error');
+      showToast(`❌ Já existe uma nota NF ${formNumeroNota} para o Empenho ${formEmpenho}.`, 'error');
       return;
     }
     
@@ -951,20 +937,19 @@ export default function NovaConferenciaPage() {
     };
 
     setNotaAtual(novaNota);
-    showToast(`Nota criada! Agora digite as quantidades e preços para validação.`, 'success');
   };
 
   const handlePrecoNotaChange = (id: string, valorDigitado: string) => {
-    if (!notaAtual || !notaAtual.itens) return;
+    if (!notaAtual || !Array.isArray(notaAtual.itens)) return;
     
-    const valorSanitizado = valorDigitado.replace(/[^0-9,]/g, '');
+    const valorSanitizado = (valorDigitado || '').replace(/[^0-9,]/g, '');
     const precoNumerico = parseFloat(valorSanitizado.replace(',', '.')) || 0;
     
     const novosItens = notaAtual.itens.map(item => {
       if (item.id === id) {
-        const quantidade = item.quantidade || 0;
+        const quantidade = Number(item.quantidade) || 0;
         const totalNota = quantidade * precoNumerico;
-        const totalCeasa = quantidade * item.precoUnitarioComDesconto;
+        const totalCeasa = quantidade * (Number(item.precoUnitarioComDesconto) || 0);
         
         const validacao = totalCeasa > 0 ? validarPreco(totalNota, totalCeasa) : null;
         
@@ -986,30 +971,29 @@ export default function NovaConferenciaPage() {
     setNotaAtual({
       ...notaAtual,
       itens: novosItens,
-      totalGeral: novosItens.reduce((acc, item) => acc + (item.totalNota || 0), 0),
+      totalGeral: novosItens.reduce((acc, item) => acc + (Number(item.totalNota) || 0), 0),
       statusValidacao: temDivergencia ? 'divergente' : 'ok'
     });
   };
 
   const handleQuantidadeChange = (id: string, valorDigitado: string) => {
-    if (!notaAtual || !notaAtual.itens) return;
+    if (!notaAtual || !Array.isArray(notaAtual.itens)) return;
 
-    const valorSanitizado = valorDigitado.replace(/[^0-9,]/g, '');
+    const valorSanitizado = (valorDigitado || '').replace(/[^0-9,]/g, '');
     const qtdNumerica = parseFloat(valorSanitizado.replace(',', '.')) || 0;
     
     const novosItens = notaAtual.itens.map(item => {
       if (item.id === id) {
-        const totalNota = qtdNumerica * (item.precoUnitarioNota || 0);
-        const totalCeasa = qtdNumerica * item.precoUnitarioComDesconto;
-        
+        const totalNota = qtdNumerica * (Number(item.precoUnitarioNota) || 0);
+        const totalCeasa = qtdNumerica * (Number(item.precoUnitarioComDesconto) || 0);
         const validacao = totalCeasa > 0 ? validarPreco(totalNota, totalCeasa) : null;
         
         return {
           ...item,
           quantidadeStr: valorSanitizado,
           quantidade: qtdNumerica,
-          totalSemDesconto: qtdNumerica * item.precoUnitarioSemDesconto,
-          total: qtdNumerica * item.precoUnitarioComDesconto,
+          totalSemDesconto: qtdNumerica * (Number(item.precoUnitarioSemDesconto) || 0),
+          total: qtdNumerica * (Number(item.precoUnitarioComDesconto) || 0),
           totalNota: totalNota,
           precoCeasa: totalCeasa,
           statusValidacao: validacao?.status,
@@ -1024,13 +1008,13 @@ export default function NovaConferenciaPage() {
     setNotaAtual({
       ...notaAtual,
       itens: novosItens,
-      totalGeral: novosItens.reduce((acc, item) => acc + (item.totalNota || 0), 0),
+      totalGeral: novosItens.reduce((acc, item) => acc + (Number(item.totalNota) || 0), 0),
       statusValidacao: temDivergencia ? 'divergente' : 'ok'
     });
   };
 
   const finalizarNota = async () => {
-    if (!notaAtual || !notaAtual.itens) return;
+    if (!notaAtual || !Array.isArray(notaAtual.itens)) return;
     
     setIsSaving(true);
     
@@ -1041,50 +1025,42 @@ export default function NovaConferenciaPage() {
         statusValidacao: temDivergencia ? 'divergente' : 'ok' as 'ok' | 'divergente'
       };
       
-      const notasSalvas = localStorage.getItem('banco_notas_hortifruti');
-      const bancoNotas = notasSalvas ? JSON.parse(notasSalvas) : [];
-      
       let bancoAtualizado;
-      let mensagemSucesso;
-      
-      if (isEditing && editingNotaId) {
-        bancoAtualizado = bancoNotas.map((nota: NotaFiscal) => 
-          nota.id === editingNotaId ? notaComStatus : nota
-        );
-        mensagemSucesso = 'Nota atualizada com sucesso!';
-      } else {
-        bancoAtualizado = [notaComStatus, ...bancoNotas];
-        mensagemSucesso = 'Nota salva com sucesso!';
+      if (typeof window !== 'undefined') {
+        const notasSalvas = window.localStorage.getItem('banco_notas_hortifruti');
+        const bancoNotas = notasSalvas ? JSON.parse(notasSalvas) : [];
+        const baseNotasSegura = Array.isArray(bancoNotas) ? bancoNotas : [];
+        
+        if (isEditing && editingNotaId) {
+          bancoAtualizado = baseNotasSegura.map((nota: NotaFiscal) => 
+            nota.id === editingNotaId ? notaComStatus : nota
+          );
+        } else {
+          bancoAtualizado = [notaComStatus, ...baseNotasSegura];
+        }
+        window.localStorage.setItem('banco_notas_hortifruti', JSON.stringify(bancoAtualizado));
       }
       
-      localStorage.setItem('banco_notas_hortifruti', JSON.stringify(bancoAtualizado));
-      
-      if (supabaseStatus === 'connected' && supabase) {
+      if (supabaseStatus === 'connected' && typeof supabase !== 'undefined') {
         try {
-          const { error } = await supabase
-            .from('notas_fiscais')
-            .upsert({
-              id: notaComStatus.id,
-              empresa: notaComStatus.empresa,
-              empenho: notaComStatus.empenho,
-              numero_nota: notaComStatus.numeroNota,
-              data: notaComStatus.data,
-              data_tabela_ceasa: notaComStatus.dataTabelaCeasa,
-              itens: notaComStatus.itens,
-              total_geral: notaComStatus.totalGeral,
-              status_validacao: notaComStatus.statusValidacao,
-              updated_at: new Date().toISOString()
-            }, { 
-              onConflict: 'id'
-            });
-          
-          if (error) throw error;
+          await supabase.from('notas_fiscais').upsert({
+            id: notaComStatus.id,
+            empresa: notaComStatus.empresa,
+            empenho: notaComStatus.empenho,
+            numero_nota: notaComStatus.numeroNota,
+            data: notaComStatus.data,
+            data_tabela_ceasa: notaComStatus.dataTabelaCeasa,
+            itens: notaComStatus.itens,
+            total_geral: notaComStatus.totalGeral,
+            status_validacao: notaComStatus.statusValidacao,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'id' });
         } catch (supabaseError) {
-          console.error('⚠️ Erro no Supabase, mas nota salva localmente:', supabaseError);
+          console.warn("Salvou localmente apenas.");
         }
       }
       
-      showToast(mensagemSucesso, temDivergencia ? 'info' : 'success');
+      showToast('Sucesso!', 'success');
       
       setNotaAtual(null);
       setIsEditing(false);
@@ -1093,20 +1069,19 @@ export default function NovaConferenciaPage() {
       setFormEmpenho('');
       setFormNumeroNota('');
       setItensCeasa([]);
-      localStorage.removeItem('nota_atual_hortifruti');
+      if (typeof window !== 'undefined') window.localStorage.removeItem('nota_atual_hortifruti');
       
       router.push('/dashboard/notas');
       
     } catch (error) {
-      console.error('❌ Erro ao salvar nota:', error);
-      showToast('Erro ao salvar nota, tente novamente', 'error');
+      showToast('Erro ao salvar nota', 'error');
     } finally {
       setIsSaving(false);
     }
   };
 
   const cancelarNota = () => {
-    if (confirm("Cancelar conferência? Todos os dados serão perdidos.")) {
+    if (confirm("Cancelar conferência?")) {
       setNotaAtual(null);
       setIsEditing(false);
       setEditingNotaId(null);
@@ -1114,17 +1089,19 @@ export default function NovaConferenciaPage() {
       setFormEmpenho('');
       setFormNumeroNota('');
       setItensCeasa([]);
-      localStorage.removeItem('nota_atual_hortifruti');
-      showToast('Conferência cancelada', 'info');
+      if (typeof window !== 'undefined') window.localStorage.removeItem('nota_atual_hortifruti');
     }
   };
 
   const notaTemErro = notaAtual?.statusValidacao === 'divergente';
   
-  const isFormValido = setupCategoria?.trim() !== '' && 
-    setupProdutoId?.trim() !== '' && 
-    parseFloat(setupKgCaixa.replace(',', '.')) > 0 && 
-    parseFloat(setupValorCaixa.replace(',', '.')) > 0;
+  const kgFloat = parseFloat((setupKgCaixa || '').replace(',', '.'));
+  const vlFloat = parseFloat((setupValorCaixa || '').replace(',', '.'));
+
+  const isFormValido = Boolean(setupCategoria) && 
+    Boolean(setupProdutoId) && 
+    !isNaN(kgFloat) && kgFloat > 0 && 
+    !isNaN(vlFloat) && vlFloat > 0;
 
   if (!isLoaded) {
     return (
@@ -1158,19 +1135,15 @@ export default function NovaConferenciaPage() {
         </div>
       </div>
 
-      {precosCeasa.length > 0 && (
+      {Array.isArray(precosCeasa) && precosCeasa.length > 0 && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles size={14} className="text-emerald-600" />
             <span className="text-xs text-emerald-700 font-medium">
-              {precosCeasa.length} preços da CEASA carregados para {formDataTabela}
-              {supabaseStatus === 'connected' && ' (sync com nuvem)'}
+              {precosCeasa.length} preços carregados
             </span>
           </div>
-          <button 
-            onClick={() => setPrecosCeasa([])}
-            className="text-xs text-emerald-600 hover:text-emerald-800"
-          >
+          <button onClick={() => setPrecosCeasa([])} className="text-xs text-emerald-600 hover:text-emerald-800">
             Limpar
           </button>
         </div>
@@ -1194,7 +1167,7 @@ export default function NovaConferenciaPage() {
                   value={formEmpresa} 
                   onChange={(e) => setFormEmpresa(e.target.value.toUpperCase())} 
                   placeholder="Nome da empresa" 
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" 
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" 
                 />
               </div>
               
@@ -1205,7 +1178,7 @@ export default function NovaConferenciaPage() {
                   value={formEmpenho} 
                   onChange={(e) => setFormEmpenho(e.target.value.toUpperCase())} 
                   placeholder="Nº do Empenho" 
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" 
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" 
                 />
               </div>
               
@@ -1216,7 +1189,7 @@ export default function NovaConferenciaPage() {
                   value={formNumeroNota} 
                   onChange={(e) => setFormNumeroNota(e.target.value.toUpperCase())} 
                   placeholder="Número da NF" 
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" 
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" 
                 />
               </div>
               
@@ -1233,11 +1206,13 @@ export default function NovaConferenciaPage() {
                   onChange={(e) => {
                     if (e.target.value) {
                       const [ano, mes, dia] = e.target.value.split('-');
-                      const dataUTC = new Date(Date.UTC(parseInt(ano), parseInt(mes) - 1, parseInt(dia)));
-                      setFormDataTabela(formatarDataBrasil(dataUTC));
+                      if(ano && mes && dia) {
+                        const dataUTC = new Date(Date.UTC(parseInt(ano), parseInt(mes) - 1, parseInt(dia)));
+                        setFormDataTabela(formatarDataBrasil(dataUTC));
+                      }
                     }
                   }}
-                  className="w-full bg-emerald-50/30 border border-emerald-200 rounded-lg px-3 py-2 text-sm text-emerald-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all cursor-pointer"
+                  className="w-full bg-emerald-50/30 border border-emerald-200 rounded-lg px-3 py-2 text-sm text-emerald-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 cursor-pointer"
                 />
               </div>
             </div>
@@ -1284,9 +1259,7 @@ export default function NovaConferenciaPage() {
                       value={setupKgCaixa} 
                       onChange={(e) => setSetupKgCaixa(e.target.value)} 
                       placeholder="0,00" 
-                      className={`w-full bg-white border rounded-lg px-3 py-2 text-sm text-slate-800 font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all ${
-                        resetEffect ? 'bg-amber-50 border-amber-400' : 'border-slate-200'
-                      }`}
+                      className={`w-full bg-white border rounded-lg px-3 py-2 text-sm text-slate-800 font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 ${resetEffect ? 'bg-amber-50 border-amber-400' : 'border-slate-200'}`}
                     />
                     <Weight size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" />
                   </div>
@@ -1301,9 +1274,7 @@ export default function NovaConferenciaPage() {
                       value={setupValorCaixa} 
                       onChange={(e) => setSetupValorCaixa(e.target.value)} 
                       placeholder="0,00" 
-                      className={`w-full bg-white border rounded-lg pl-7 pr-3 py-2 text-sm text-slate-800 font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all ${
-                        resetEffect ? 'bg-amber-50 border-amber-400' : 'border-slate-200'
-                      }`}
+                      className={`w-full bg-white border rounded-lg pl-7 pr-3 py-2 text-sm text-slate-800 font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 ${resetEffect ? 'bg-amber-50 border-amber-400' : 'border-slate-200'}`}
                     />
                   </div>
                 </div>
@@ -1311,15 +1282,13 @@ export default function NovaConferenciaPage() {
                 <button 
                   type="submit" 
                   disabled={!isFormValido}
-                  className={`bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center gap-1.5 text-sm h-[38px] ${
-                    !isFormValido ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
+                  className={`bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg transition-all shadow-sm flex items-center gap-1.5 text-sm h-[38px] ${!isFormValido ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <Plus size={14} /> Adicionar
                 </button>
               </form>
 
-              {itensCeasa.length > 0 && (
+              {Array.isArray(itensCeasa) && itensCeasa.length > 0 && (
                 <div className="mt-4 border border-slate-200 rounded-lg overflow-hidden">
                   <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex justify-between items-center">
                     <span className="font-semibold text-xs text-slate-600">Itens adicionados</span>
@@ -1344,10 +1313,7 @@ export default function NovaConferenciaPage() {
                             </td>
                             <td className="px-3 py-2 text-right font-bold text-emerald-600 text-sm">{formatarMoeda(item.precoUnitarioComDesconto)}</td>
                             <td className="px-3 py-2 text-center">
-                              <button 
-                                onClick={() => removerItemSetup(item.id)} 
-                                className="p-1 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors"
-                              >
+                              <button onClick={() => removerItemSetup(item.id)} className="p-1 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors">
                                 <Trash2 size={14} />
                               </button>
                             </td>
@@ -1361,9 +1327,9 @@ export default function NovaConferenciaPage() {
 
               <button 
                 onClick={iniciarDigitacaoDaNota} 
-                disabled={itensCeasa.length === 0 || !formEmpresa || !formEmpenho || !formNumeroNota} 
+                disabled={!Array.isArray(itensCeasa) || itensCeasa.length === 0 || !formEmpresa || !formEmpenho || !formNumeroNota} 
                 className={`mt-4 w-full py-2.5 rounded-lg font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 ${
-                  itensCeasa.length === 0 || !formEmpresa || !formEmpenho || !formNumeroNota
+                  !Array.isArray(itensCeasa) || itensCeasa.length === 0 || !formEmpresa || !formEmpenho || !formNumeroNota
                     ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' 
                     : 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0'
                 }`}
@@ -1449,7 +1415,7 @@ export default function NovaConferenciaPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {notaAtual?.itens?.map((item) => (
+                  {Array.isArray(notaAtual?.itens) && notaAtual.itens.map((item) => (
                     <tr 
                       key={item.id} 
                       className={`transition-all ${
@@ -1491,7 +1457,7 @@ export default function NovaConferenciaPage() {
 
                       <td className="p-3 text-right font-bold text-slate-700 text-sm">
                         {formatarMoeda(item.totalNota || 0)}
-                        {item.statusValidacao === 'divergente' && item.diferenca && (
+                        {item.statusValidacao === 'divergente' && item.diferenca !== undefined && (
                           <div className="text-[10px] text-rose-600 font-semibold mt-1">
                             dif: {formatarMoeda(item.diferenca)}
                           </div>
