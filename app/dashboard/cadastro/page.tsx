@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
+import { v4 as uuidv4 } from 'uuid';
 import { 
   Plus, 
   Save, 
@@ -21,93 +22,222 @@ import {
   FileUp,
   Loader2,
   Sparkles,
-  Database
+  Database,
+  Pencil
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { salvarPrecosCeasa, buscarPrecosCeasa, salvarNotaFiscal } from '@/lib/supabase/db';
 
-// ==================== BANCO DE DADOS CEASA ====================
+// ==================== BANCO DE DADOS CEASA COMPLETO ====================
 const PRODUTOS_CONTRATO = [
+  // --- ABACATES ---
   { id: 101, codigo: 0, categoria: 'ABACATE', nome: 'AVOCADO', desconto: 10.00 },
   { id: 102, codigo: 0, categoria: 'ABACATE', nome: 'FORTUNA', desconto: 10.00 },
   { id: 103, codigo: 0, categoria: 'ABACATE', nome: 'MANTEIGA', desconto: 10.00 },
   { id: 104, codigo: 0, categoria: 'ABACATE', nome: 'MARGARIDA', desconto: 10.00 },
-  { id: 25, codigo: 1107, categoria: 'ABACAXI', nome: 'HAVAI', desconto: 14.80 },
-  { id: 26, codigo: 251658, categoria: 'ABACAXI', nome: 'PÉROLA', desconto: 18.10 },
-  { id: 2, codigo: 357, categoria: 'ABÓBORA', nome: 'KABOTIÁ / HOKAIDO', desconto: 8.80 },
-  { id: 3, codigo: 90539, categoria: 'ABÓBORA', nome: 'MORANGA', desconto: 10.30 },
-  { id: 4, codigo: 359, categoria: 'ABÓBORA', nome: 'PAULISTA / MENINA', desconto: 10.50 },
-  { id: 105, codigo: 0, categoria: 'ABÓBORA', nome: 'SECA / PESCOÇO', desconto: 10.50 },
-  { id: 5, codigo: 111964, categoria: 'ABOBRINHA', nome: 'MENINA', desconto: 10.30 },
-  { id: 106, codigo: 0, categoria: 'ABOBRINHA', nome: 'BRANCA', desconto: 10.30 },
-  { id: 107, codigo: 0, categoria: 'ABOBRINHA', nome: 'VERDE', desconto: 10.30 },
-  { id: 108, codigo: 0, categoria: 'ALHO', nome: 'ROXO NACIONAL', desconto: 5.00 },
-  { id: 109, codigo: 0, categoria: 'ALHO', nome: 'ROXO IMPORTADO', desconto: 5.00 },
-  { id: 110, codigo: 0, categoria: 'CEBOLA', nome: 'COMUM / BRANCA', desconto: 10.00 },
-  { id: 111, codigo: 0, categoria: 'CEBOLA', nome: 'ROXA', desconto: 10.00 },
-  { id: 112, codigo: 0, categoria: 'CENOURA', nome: 'COMUM', desconto: 10.00 },
-  { id: 31, codigo: 371, categoria: 'BETERRABA', nome: 'EXTRA', desconto: 10.20 },
-  { id: 113, codigo: 0, categoria: 'BATATA', nome: 'COMUM', desconto: 10.00 },
-  { id: 114, codigo: 0, categoria: 'BATATA', nome: 'CASCA ROSADA', desconto: 10.00 },
-  { id: 115, codigo: 0, categoria: 'BATATA DOCE', nome: 'BRANCA', desconto: 10.00 },
-  { id: 116, codigo: 0, categoria: 'BATATA DOCE', nome: 'ROXA', desconto: 10.00 },
-  { id: 117, codigo: 0, categoria: 'BATATA SALSA (MANDIOQUINHA)', nome: 'PRIMEIRA', desconto: 10.00 },
-  { id: 1, codigo: 364, categoria: 'BANANA', nome: 'MAÇÃ', desconto: 2.20 },
-  { id: 118, codigo: 0, categoria: 'BANANA', nome: 'CATURRA', desconto: 2.20 },
+  { id: 200, codigo: 0, categoria: 'ABACATE', nome: 'GEADA', desconto: 10.00 },
+
+  // --- ABACAXI ---
+  { id: 25, codigo: 1107, categoria: 'ABACAXI', nome: 'HAVAI MEDIO', desconto: 14.80 },
+  { id: 26, codigo: 251658, categoria: 'ABACAXI', nome: 'PÉROLA GRAUDO', desconto: 18.10 },
+  { id: 201, codigo: 0, categoria: 'ABACAXI', nome: 'PÉROLA MÉDIO', desconto: 10.00 },
+
+  // --- AMEIXA ---
+  { id: 202, codigo: 0, categoria: 'AMEIXA', nome: 'VERMELHA IMPORTADA', desconto: 10.00 },
+  { id: 203, codigo: 0, categoria: 'AMEIXA', nome: 'VERMELHA NACIONAL', desconto: 10.00 },
+
+  // --- BANANA ---
+  { id: 1, codigo: 364, categoria: 'BANANA', nome: 'MAÇÃ PRIMEIRA', desconto: 2.20 },
+  { id: 118, codigo: 0, categoria: 'BANANA', nome: 'CATURRA PRIMEIRA', desconto: 2.20 },
   { id: 119, codigo: 0, categoria: 'BANANA', nome: 'PRATA', desconto: 2.20 },
   { id: 120, codigo: 0, categoria: 'BANANA', nome: 'TERRA', desconto: 2.20 },
-  { id: 27, codigo: 361, categoria: 'AGRIÃO', nome: 'MAÇO', desconto: 3.30 },
-  { id: 28, codigo: 236941, categoria: 'ALFACE', nome: 'AMERICANA', desconto: 3.20 },
-  { id: 29, codigo: 362, categoria: 'ALFACE', nome: 'CRESPA', desconto: 3.20 },
-  { id: 121, codigo: 0, categoria: 'ALFACE', nome: 'LISA', desconto: 3.20 },
-  { id: 6, codigo: 272822, categoria: 'COENTRO', nome: 'MAÇO', desconto: 2.70 },
-  { id: 7, codigo: 379, categoria: 'COUVE FLOR', nome: 'UNIDADE', desconto: 2.70 },
-  { id: 122, codigo: 0, categoria: 'COUVE MANTEIGA', nome: 'MAÇO', desconto: 3.00 },
-  { id: 37, codigo: 413, categoria: 'RÚCULA', nome: 'MAÇO', desconto: 8.60 },
-  { id: 123, codigo: 0, categoria: 'CEBOLINHA', nome: 'MAÇO', desconto: 3.00 },
-  { id: 124, codigo: 0, categoria: 'LARANJA', nome: 'BAHIA', desconto: 10.00 },
-  { id: 125, codigo: 0, categoria: 'LARANJA', nome: 'LIMA', desconto: 10.00 },
-  { id: 126, codigo: 0, categoria: 'LARANJA', nome: 'PERA', desconto: 10.00 },
-  { id: 127, codigo: 0, categoria: 'LIMÃO', nome: 'TAHITI', desconto: 10.00 },
-  { id: 128, codigo: 0, categoria: 'LIMÃO', nome: 'ROSA', desconto: 10.00 },
-  { id: 129, codigo: 0, categoria: 'LIMÃO', nome: 'SICILIANO', desconto: 10.00 },
-  { id: 130, codigo: 0, categoria: 'MAÇÃ', nome: 'GALA', desconto: 10.00 },
-  { id: 131, codigo: 0, categoria: 'MAÇÃ', nome: 'FUJI', desconto: 10.00 },
-  { id: 132, codigo: 0, categoria: 'MAÇÃ', nome: 'EVA', desconto: 10.00 },
-  { id: 133, codigo: 0, categoria: 'MAÇÃ', nome: 'GRANNY SMITH (VERDE)', desconto: 10.00 },
-  { id: 33, codigo: 203412, categoria: 'MAMÃO', nome: 'HAVAI / PAPAYA', desconto: 10.10 },
-  { id: 134, codigo: 0, categoria: 'MAMÃO', nome: 'FORMOSA', desconto: 10.10 },
-  { id: 12, codigo: 90548, categoria: 'MANGA', nome: 'TOMMY', desconto: 16.65 },
+
+  // --- DEMAIS FRUTAS (A-M) ---
+  { id: 204, codigo: 0, categoria: 'CAQUI', nome: 'IMPORTADO', desconto: 10.00 },
+  { id: 205, codigo: 0, categoria: 'CAQUI', nome: 'CHOCOLATE', desconto: 10.00 },
+  { id: 206, codigo: 0, categoria: 'CAQUI', nome: 'FUYU', desconto: 10.00 },
+  { id: 207, codigo: 0, categoria: 'COCO', nome: 'SECO', desconto: 10.00 },
+  { id: 208, codigo: 0, categoria: 'COCO', nome: 'VERDE', desconto: 10.00 },
+  { id: 209, codigo: 0, categoria: 'KIWI', nome: 'IMPORTADO', desconto: 10.00 },
+  { id: 124, codigo: 0, categoria: 'LARANJA', nome: 'BAHIA IMPORTADA', desconto: 10.00 },
+  { id: 210, codigo: 0, categoria: 'LARANJA', nome: 'BAHIA MÉDIA', desconto: 10.00 },
+  { id: 125, codigo: 0, categoria: 'LARANJA', nome: 'LIMA MÉDIA', desconto: 10.00 },
+  { id: 126, codigo: 0, categoria: 'LARANJA', nome: 'PERA MEDIA', desconto: 10.00 },
+  { id: 211, codigo: 0, categoria: 'LIMA PERSIA', nome: 'LIMA PERSIA', desconto: 10.00 },
+  { id: 128, codigo: 0, categoria: 'LIMAO', nome: 'ROSA', desconto: 10.00 },
+  { id: 129, codigo: 0, categoria: 'LIMAO', nome: 'SICILIANO IMPORTADO', desconto: 10.00 },
+  { id: 127, codigo: 0, categoria: 'LIMAO', nome: 'TAHITI GRAUDO', desconto: 10.00 },
+  { id: 212, codigo: 0, categoria: 'LIMAO', nome: 'TAHITI MEDIO', desconto: 10.00 },
+  
+  // --- MAÇÃS ---
+  { id: 132, codigo: 0, categoria: 'MAÇÃ', nome: 'EVA PRIMEIRA', desconto: 10.00 },
+  { id: 131, codigo: 0, categoria: 'MAÇÃ', nome: 'FUJI CAT 1 TP 80 A 100', desconto: 10.00 },
+  { id: 130, codigo: 0, categoria: 'MAÇÃ', nome: 'GALA CAT 1 TP 80 A 100', desconto: 10.00 },
+  { id: 133, codigo: 0, categoria: 'MAÇÃ IMPORTADA', nome: 'GRANNY SMITH TP 80 A 100', desconto: 10.00 },
+  { id: 213, codigo: 0, categoria: 'MAÇÃ IMPORTADA', nome: 'RED DELICIOUS TP80 A 100', desconto: 10.00 },
+
+  // --- MAMÃO, MANGA, MARACUJÁ, MELANCIA, MELÃO ---
+  { id: 134, codigo: 0, categoria: 'MAMÃO', nome: 'FORMOSA MADURO', desconto: 10.10 },
+  { id: 33, codigo: 203412, categoria: 'MAMÃO', nome: 'PAPAYA/HAVAI 24', desconto: 10.10 },
   { id: 135, codigo: 0, categoria: 'MANGA', nome: 'PALMER', desconto: 16.65 },
+  { id: 12, codigo: 90548, categoria: 'MANGA', nome: 'TOMMY ATKINS', desconto: 16.65 },
   { id: 13, codigo: 6602, categoria: 'MARACUJÁ', nome: 'AZEDO', desconto: 10.10 },
-  { id: 136, codigo: 0, categoria: 'MARACUJÁ', nome: 'DOCE', desconto: 10.10 },
-  { id: 14, codigo: 1046, categoria: 'MELANCIA', nome: 'REDONDA / COMPRIDA', desconto: 19.10 },
+  { id: 136, codigo: 0, categoria: 'MARACUJÁ', nome: 'DOCE MEDIO', desconto: 10.10 },
   { id: 137, codigo: 0, categoria: 'MELANCIA', nome: 'BABY', desconto: 19.10 },
-  { id: 138, codigo: 0, categoria: 'MELÃO', nome: 'AMARELO', desconto: 10.00 },
-  { id: 139, codigo: 0, categoria: 'MELÃO', nome: 'PELE DE SAPO', desconto: 10.00 },
-  { id: 17, codigo: 203414, categoria: 'PEPINO', nome: 'AODAI / SALADA', desconto: 10.10 },
-  { id: 18, codigo: 1637, categoria: 'PEPINO', nome: 'JAPONÊS', desconto: 10.10 },
-  { id: 20, codigo: 111965, categoria: 'PIMENTÃO', nome: 'AMARELO', desconto: 10.10 },
-  { id: 21, codigo: 3693, categoria: 'PIMENTÃO', nome: 'VERDE', desconto: 9.10 },
-  { id: 22, codigo: 111966, categoria: 'PIMENTÃO', nome: 'VERMELHO', desconto: 9.10 },
-  { id: 35, codigo: 98800, categoria: 'REPOLHO', nome: 'VERDE', desconto: 10.00 },
-  { id: 36, codigo: 90933, categoria: 'REPOLHO', nome: 'ROXO', desconto: 10.00 },
-  { id: 38, codigo: 416, categoria: 'TOMATE', nome: 'LONGA VIDA', desconto: 15.00 },
-  { id: 140, codigo: 0, categoria: 'TOMATE', nome: 'CEREJA', desconto: 15.00 },
-  { id: 141, codigo: 0, categoria: 'TOMATE', nome: 'SALADETE', desconto: 15.00 },
-  { id: 30, codigo: 265691, categoria: 'BERINJELA', nome: 'EXTRA', desconto: 3.20 },
-  { id: 32, codigo: 221161, categoria: 'CARÁ', nome: 'EXTRA', desconto: 6.20 },
-  { id: 8, codigo: 111968, categoria: 'GENGIBRE', nome: 'PRIMEIRA', desconto: 4.10 },
-  { id: 9, codigo: 89741, categoria: 'GOIABA', nome: 'VERMELHA / BRANCA', desconto: 10.10 },
-  { id: 10, codigo: 271015, categoria: 'INHAME', nome: 'TAIÁ', desconto: 10.10 },
-  { id: 11, codigo: 266834, categoria: 'JILÓ', nome: 'PRIMEIRA', desconto: 7.10 },
-  { id: 15, codigo: 221173, categoria: 'TANGERINA / MEXERICA', nome: 'MURKOTE / PONKAN', desconto: 10.10 },
-  { id: 16, codigo: 400, categoria: 'MILHO VERDE', nome: 'ESPIGA / BANDEJA', desconto: 10.10 },
+  { id: 14, codigo: 1046, categoria: 'MELANCIA', nome: 'REDONDA', desconto: 19.10 },
+  { id: 138, codigo: 0, categoria: 'MELÃO', nome: 'AMARELO REI (5-7 UND.)', desconto: 10.00 },
+  { id: 214, codigo: 0, categoria: 'MELÃO', nome: 'AMARELO COMUM 08 A 10 UN', desconto: 10.00 },
+  { id: 215, codigo: 0, categoria: 'MELÃO', nome: 'ORANGE 5 A 6 UN', desconto: 10.00 },
+  { id: 139, codigo: 0, categoria: 'MELÃO', nome: 'PELE DE SAPO 5-6-8-10 UN', desconto: 10.00 },
   { id: 34, codigo: 93945, categoria: 'MORANGO', nome: 'TIPO 1', desconto: 10.20 },
-  { id: 19, codigo: 268125, categoria: 'PÊRA', nome: 'IMPORTADA WILLIANS / D ANJOU', desconto: 19.90 },
+
+  // --- PERAS E PÊSSEGOS ---
+  { id: 216, codigo: 0, categoria: 'NECTARINA', nome: 'IMPORTADA', desconto: 10.00 },
+  { id: 217, codigo: 0, categoria: 'NECTARINA', nome: 'NACIONAL', desconto: 10.00 },
+  { id: 19, codigo: 268125, categoria: 'PERA IMPORTADA', nome: 'D\'ANJOU TP 80 A 100', desconto: 19.90 },
+  { id: 218, codigo: 0, categoria: 'PERA IMPORTADA', nome: 'PACKHAM\'S TP 80 A 100', desconto: 10.00 },
+  { id: 219, codigo: 0, categoria: 'PERA IMPORTADA', nome: 'PORTUGUESA', desconto: 10.00 },
+  { id: 220, codigo: 0, categoria: 'PERA IMPORTADA', nome: 'WILLIAMS TP 80 A 100', desconto: 10.00 },
+  { id: 221, codigo: 0, categoria: 'PÊRA NACIONAL', nome: 'YARI', desconto: 10.00 },
+  { id: 222, codigo: 0, categoria: 'PÊSSEGO', nome: 'IMPORTADO', desconto: 10.00 },
+  { id: 223, codigo: 0, categoria: 'PÊSSEGO', nome: 'NACIONAL', desconto: 10.00 },
+  { id: 224, codigo: 0, categoria: 'PITAIA', nome: 'C/12UN', desconto: 10.00 },
+
+  // --- TANGERINAS E UVAS ---
+  { id: 225, codigo: 0, categoria: 'TAMARA FRESCA', nome: 'FRESCA', desconto: 10.00 },
+  { id: 226, codigo: 0, categoria: 'TANGERINA', nome: 'CRAVO', desconto: 10.00 },
+  { id: 227, codigo: 0, categoria: 'TANGERINA', nome: 'MONTEN/BERGAM GRANDE', desconto: 10.00 },
+  { id: 15, codigo: 221173, categoria: 'TANGERINA', nome: 'MURKOTE MEDIA', desconto: 10.10 },
+  { id: 228, codigo: 0, categoria: 'TANGERINA', nome: 'PONKAN MEDIA', desconto: 10.00 },
+  { id: 229, codigo: 0, categoria: 'UVA', nome: 'BENITAKE NACIONAL', desconto: 10.00 },
+  { id: 230, codigo: 0, categoria: 'UVA', nome: 'BRASIL/CENTENIA NACIONAL', desconto: 10.00 },
+  { id: 231, codigo: 0, categoria: 'UVA', nome: 'CRINSON IMPORTADA', desconto: 10.00 },
+  { id: 232, codigo: 0, categoria: 'UVA', nome: 'CRINSON NACIONAL', desconto: 10.00 },
+  { id: 233, codigo: 0, categoria: 'UVA', nome: 'ITALIA NACIONAL', desconto: 10.00 },
+  { id: 142, codigo: 0, categoria: 'UVA', nome: 'NIAGARA ROSADA', desconto: 10.00 },
+  { id: 234, codigo: 0, categoria: 'UVA', nome: 'REDGLO IMPORTADA', desconto: 10.00 },
+  { id: 235, codigo: 0, categoria: 'UVA', nome: 'RUBI NACIONAL', desconto: 10.00 },
+  { id: 236, codigo: 0, categoria: 'UVA', nome: 'THOMPSON IMPORTADA', desconto: 10.00 },
+  { id: 237, codigo: 0, categoria: 'UVA', nome: 'THOMPSON NACIONAL', desconto: 10.00 },
+  { id: 238, codigo: 0, categoria: 'UVA', nome: 'VITÓRIA NACIONAL', desconto: 10.00 },
+
+  // --- FRUTAS DIVERSAS (Amora a Nêspera) ---
+  { id: 239, codigo: 0, categoria: 'AMORA', nome: 'AMORA', desconto: 10.00 },
+  { id: 240, codigo: 0, categoria: 'ATEMOIA', nome: '15 UNID', desconto: 10.00 },
+  { id: 241, codigo: 0, categoria: 'CAJU', nome: 'CAJU', desconto: 10.00 },
+  { id: 242, codigo: 0, categoria: 'CARAMBOLA', nome: 'CARAMBOLA', desconto: 10.00 },
+  { id: 243, codigo: 0, categoria: 'CASTANHA', nome: 'PARÁ NACIONAL', desconto: 10.00 },
+  { id: 244, codigo: 0, categoria: 'CEREJA', nome: 'IMPORTADA', desconto: 10.00 },
+  { id: 245, codigo: 0, categoria: 'FIGO', nome: 'ROXO', desconto: 10.00 },
+  { id: 246, codigo: 0, categoria: 'FRAMBOESA', nome: 'FRAMBOESA', desconto: 10.00 },
+  { id: 9, codigo: 89741, categoria: 'GOIABA', nome: 'VERMELHA', desconto: 10.10 },
+  { id: 247, codigo: 0, categoria: 'JABUTICABA', nome: 'JABUTICABA', desconto: 10.00 },
+  { id: 248, codigo: 0, categoria: 'JACA', nome: 'JACA', desconto: 10.00 },
+  { id: 249, codigo: 0, categoria: 'KINKAN', nome: 'KINKAN', desconto: 10.00 },
+  { id: 250, codigo: 0, categoria: 'LICHIA', nome: 'LICHIA', desconto: 10.00 },
+  { id: 251, codigo: 0, categoria: 'MIRTILO', nome: 'MIRTILO', desconto: 10.00 },
+  { id: 252, codigo: 0, categoria: 'NÊSPERA', nome: 'NÊSPERA', desconto: 10.00 },
+  { id: 253, codigo: 0, categoria: 'NOZ', nome: 'PECÃ', desconto: 10.00 },
+  { id: 254, codigo: 0, categoria: 'PHYSALIS', nome: 'VELUVA IMPORTADA', desconto: 10.00 },
+  { id: 255, codigo: 0, categoria: 'PINHA (FRUTA DO CONDE)', nome: 'PINHA', desconto: 10.00 },
+  { id: 256, codigo: 0, categoria: 'ROMA', nome: 'ROMA', desconto: 10.00 },
+
+  // --- HORTALIÇAS FRUTOS ---
+  { id: 2, codigo: 357, categoria: 'ABOBORA', nome: 'HOKAIDO/KABOTIA', desconto: 8.80 },
+  { id: 4, codigo: 359, categoria: 'ABOBORA', nome: 'MENINA/PAULISTA', desconto: 10.50 },
+  { id: 3, codigo: 90539, categoria: 'ABOBORA', nome: 'MORANGA', desconto: 10.30 },
+  { id: 105, codigo: 0, categoria: 'ABOBORA', nome: 'SECA/PESCOÇO', desconto: 10.50 },
+  { id: 106, codigo: 0, categoria: 'ABOBRINHA', nome: 'BRANCA EXTRA A', desconto: 10.30 },
+  { id: 257, codigo: 0, categoria: 'ABOBRINHA', nome: 'BRANCA EXTRA AA', desconto: 10.30 },
+  { id: 5, codigo: 111964, categoria: 'ABOBRINHA', nome: 'VERDE EXTRA A', desconto: 10.30 },
+  { id: 107, codigo: 0, categoria: 'ABOBRINHA', nome: 'VERDE EXTRA AA', desconto: 10.30 },
+  { id: 258, codigo: 0, categoria: 'BERINJELA', nome: 'EXTRA A', desconto: 3.20 },
+  { id: 30, codigo: 265691, categoria: 'BERINJELA', nome: 'EXTRA AA', desconto: 3.20 },
+  { id: 259, codigo: 0, categoria: 'CAXI', nome: 'CAXI', desconto: 10.00 },
+  { id: 260, codigo: 0, categoria: 'CHUCHU', nome: 'EXTRA A', desconto: 10.00 },
+  { id: 261, codigo: 0, categoria: 'CHUCHU', nome: 'EXTRA AA', desconto: 10.00 },
+  { id: 262, codigo: 0, categoria: 'ERVILHA', nome: 'TORTA (PR)', desconto: 10.00 },
+  { id: 11, codigo: 266834, categoria: 'JILÓ', nome: 'PRIMEIRA', desconto: 7.10 },
+  { id: 263, codigo: 0, categoria: 'MAXIXE', nome: 'PRIMEIRA', desconto: 10.00 },
+  { id: 16, codigo: 400, categoria: 'MILHO', nome: 'VERDE BANDEJA C/4UN', desconto: 10.10 },
+  { id: 264, codigo: 0, categoria: 'MILHO', nome: 'VERDE SC C/50 ESPIGAS', desconto: 10.00 },
+  { id: 17, codigo: 203414, categoria: 'PEPINO', nome: 'AODAI/SALADA EXTRA A', desconto: 10.10 },
+  { id: 265, codigo: 0, categoria: 'PEPINO', nome: 'AODAI/SALADA EXTRA AA', desconto: 10.00 },
+  { id: 266, codigo: 0, categoria: 'PEPINO', nome: 'JAPONÊS EXTRA A', desconto: 10.00 },
+  { id: 18, codigo: 1637, categoria: 'PEPINO', nome: 'JAPONÊS EXTRA AA', desconto: 10.10 },
+  
+  // --- PIMENTAS E PIMENTÕES ---
+  { id: 267, codigo: 0, categoria: 'PIMENTA', nome: 'AMERICANA', desconto: 10.00 },
+  { id: 268, codigo: 0, categoria: 'PIMENTA', nome: 'CAMBUCI', desconto: 10.00 },
+  { id: 269, codigo: 0, categoria: 'PIMENTA', nome: 'DEDO DE MOÇA/ARDIDA', desconto: 10.00 },
+  { id: 20, codigo: 111965, categoria: 'PIMENTAO', nome: 'AMARELO EXTRA AA', desconto: 10.10 },
+  { id: 270, codigo: 0, categoria: 'PIMENTAO', nome: 'VERDE EXTRA A', desconto: 10.00 },
+  { id: 21, codigo: 3693, categoria: 'PIMENTAO', nome: 'VERDE EXTRA AA', desconto: 9.10 },
+  { id: 22, codigo: 111966, categoria: 'PIMENTAO', nome: 'VERMELHO EXTRA AA', desconto: 9.10 },
   { id: 23, codigo: 90537, categoria: 'QUIABO', nome: 'PRIMEIRA', desconto: 9.10 },
-  { id: 24, codigo: 417, categoria: 'VAGEM', nome: 'MACARRÃO', desconto: 6.70 },
-  { id: 142, codigo: 0, categoria: 'UVA', nome: 'NIAGARA / OUTRAS', desconto: 10.00 },
+  
+  // --- TOMATE E VAGEM ---
+  { id: 140, codigo: 0, categoria: 'TOMATE', nome: 'CEREJA BANDEJA', desconto: 15.00 },
+  { id: 271, codigo: 0, categoria: 'TOMATE', nome: 'CEREJA EXTRA AA', desconto: 15.00 },
+  { id: 38, codigo: 416, categoria: 'TOMATE', nome: 'LONGA VIDA EXTRA AA', desconto: 15.00 },
+  { id: 141, codigo: 0, categoria: 'TOMATE', nome: 'SALADETE EXTRA AA', desconto: 15.00 },
+  { id: 272, codigo: 0, categoria: 'VAGEM', nome: 'MACARRAO EXTRA A', desconto: 10.00 },
+  { id: 24, codigo: 417, categoria: 'VAGEM', nome: 'MACARRAO EXTRA AA', desconto: 6.70 },
+
+  // --- HORTALIÇAS TUBEROSAS ---
+  { id: 273, codigo: 0, categoria: 'AIPIM-MANDIOCA', nome: 'PRIMEIRA', desconto: 10.00 },
+  { id: 274, codigo: 0, categoria: 'AIPIM-MANDIOCA', nome: 'TOLETE', desconto: 10.00 },
+  { id: 109, codigo: 0, categoria: 'ALHO IMPORTADO', nome: 'ROXO TP 6 A 7', desconto: 5.00 },
+  { id: 108, codigo: 0, categoria: 'ALHO NACIONAL', nome: 'ROXO TP 6 A 7', desconto: 5.00 },
+  { id: 114, codigo: 0, categoria: 'BATATA', nome: 'CASCA ROSADA ESPECIAL', desconto: 10.00 },
+  { id: 113, codigo: 0, categoria: 'BATATA', nome: 'COMUM ESPECIAL', desconto: 10.00 },
+  { id: 275, codigo: 0, categoria: 'BATATA', nome: 'COMUM PRIMEIRINHA', desconto: 10.00 },
+  { id: 115, codigo: 0, categoria: 'BATATA DOCE', nome: 'BRANCA EXTRA', desconto: 10.00 },
+  { id: 116, codigo: 0, categoria: 'BATATA DOCE', nome: 'ROXA EXTRA', desconto: 10.00 },
+  { id: 276, codigo: 0, categoria: 'BATATA YAKON', nome: 'YAKON', desconto: 10.00 },
+  { id: 277, codigo: 0, categoria: 'BETERRABA', nome: 'EXTRA A', desconto: 10.00 },
+  { id: 31, codigo: 371, categoria: 'BETERRABA', nome: 'EXTRA AA', desconto: 10.20 },
+  { id: 32, codigo: 221161, categoria: 'CARA', nome: 'EXTRA A', desconto: 6.20 },
+  { id: 110, codigo: 0, categoria: 'CEBOLA', nome: 'BRANCA NACIONAL', desconto: 10.00 },
+  { id: 278, codigo: 0, categoria: 'CEBOLA', nome: 'PERA NACIONAL', desconto: 10.00 },
+  { id: 111, codigo: 0, categoria: 'CEBOLA', nome: 'ROXA', desconto: 10.00 },
+  { id: 279, codigo: 0, categoria: 'CENOURA', nome: 'COMUM EXTRA A', desconto: 10.00 },
+  { id: 112, codigo: 0, categoria: 'CENOURA', nome: 'COMUM EXTRA AA', desconto: 10.00 },
+  { id: 8, codigo: 111968, categoria: 'GENGIBRE', nome: 'PRIMEIRA', desconto: 4.10 },
+  { id: 280, codigo: 0, categoria: 'GOBO', nome: 'GOBO', desconto: 10.00 },
+  { id: 10, codigo: 271015, categoria: 'INHAME-TAIÁ', nome: 'PRIMEIRA', desconto: 10.10 },
+  { id: 117, codigo: 0, categoria: 'MANDIOQUINHA/BATATA SALSA', nome: 'PRIMEIRA', desconto: 10.00 },
+  { id: 281, codigo: 0, categoria: 'NABO', nome: 'BRANCO', desconto: 10.00 },
+  { id: 282, codigo: 0, categoria: 'RABANETE', nome: 'DZ DE MAÇOS', desconto: 10.00 },
+
+  // --- HORTALIÇAS HERBÁCEAS (Folhas) ---
+  { id: 27, codigo: 361, categoria: 'AGRIAO', nome: 'MAÇO', desconto: 3.30 },
+  { id: 28, codigo: 236941, categoria: 'ALFACE', nome: 'AMERICANA MÉDIA', desconto: 3.20 },
+  { id: 29, codigo: 362, categoria: 'ALFACE', nome: 'CRESPA MEDIO', desconto: 3.20 },
+  { id: 283, codigo: 0, categoria: 'ALHO PORO', nome: 'MAÇO 4 UNID', desconto: 10.00 },
+  { id: 284, codigo: 0, categoria: 'ALMEIRAO', nome: 'PÃO DE ACUCAR MAÇO', desconto: 10.00 },
+  { id: 285, codigo: 0, categoria: 'ASPARGO', nome: 'ASPARGO', desconto: 10.00 },
+  { id: 123, codigo: 0, categoria: 'CEBOLINHA', nome: 'CEBOLINHA', desconto: 3.00 },
+  { id: 6, codigo: 272822, categoria: 'COENTRO', nome: 'MAÇO', desconto: 2.70 },
+  { id: 286, codigo: 0, categoria: 'COUVE BROCOLO', nome: 'AMERICANA DUZIA', desconto: 10.00 },
+  { id: 287, codigo: 0, categoria: 'COUVE CHINESA', nome: 'GRANDE', desconto: 10.00 },
+  { id: 7, codigo: 379, categoria: 'COUVE FLOR', nome: 'MÉDIA', desconto: 2.70 },
+  { id: 122, codigo: 0, categoria: 'COUVE MANTEIGA', nome: 'MAÇO', desconto: 3.00 },
+  { id: 288, codigo: 0, categoria: 'ESCAROLA/CHICORIA', nome: 'ESCAROLA/CHICORIA', desconto: 10.00 },
+  { id: 289, codigo: 0, categoria: 'ESPINAFRE', nome: 'ESPINAFRE', desconto: 10.00 },
+  { id: 290, codigo: 0, categoria: 'HORTELA', nome: 'HORTELA', desconto: 10.00 },
+  { id: 36, codigo: 90933, categoria: 'REPOLHO', nome: 'ROXO GRANDE/MEDIO', desconto: 10.00 },
+  { id: 35, codigo: 98800, categoria: 'REPOLHO', nome: 'VERDE MEDIO', desconto: 10.00 },
+  { id: 37, codigo: 413, categoria: 'RUCULA', nome: 'RUCULA', desconto: 8.60 },
+  { id: 291, codigo: 0, categoria: 'SALSAO (AIPO)', nome: 'SALSAO (AIPO)', desconto: 10.00 },
+  { id: 292, codigo: 0, categoria: 'SALSINHA', nome: 'SALSINHA', desconto: 10.00 },
+
+  // --- GRANJEIROS E OUTROS ---
+  { id: 293, codigo: 0, categoria: 'OVO', nome: 'BRANCO EXTRA', desconto: 10.00 },
+  { id: 294, codigo: 0, categoria: 'OVO', nome: 'BRANCO MEDIO', desconto: 10.00 },
+  { id: 295, codigo: 0, categoria: 'OVO', nome: 'CODORNA', desconto: 10.00 },
+  { id: 296, codigo: 0, categoria: 'OVO', nome: 'VERMELHO EXTRA', desconto: 10.00 },
+  { id: 297, codigo: 0, categoria: 'AMENDOIM', nome: 'COM CASCA', desconto: 10.00 },
 ];
 
 // ==================== TIPOS ====================
@@ -124,16 +254,24 @@ interface ItemNota {
   quantidade: number;
   totalSemDesconto: number;
   total: number;
+  precoUnitarioNotaStr?: string;
+  precoUnitarioNota?: number;
+  totalNota?: number;
+  precoCeasa?: number;
+  statusValidacao?: 'ok' | 'divergente';
+  diferenca?: number;
 }
 
 interface NotaFiscal {
   id: string;
   empresa: string;
   empenho: string;
+  numeroNota: string;
   data: string;
   dataTabelaCeasa: string;
   itens: ItemNota[];
   totalGeral: number;
+  statusValidacao?: 'ok' | 'divergente';
 }
 
 interface PrecoCeasa {
@@ -168,14 +306,96 @@ const calcularPrecoComDesconto = (precoUnitario: number, descontoPercentual: num
   return Math.round((precoUnitario - valorDesconto) * 100) / 100;
 };
 
-const normalizarTexto = (texto: string) => {
+const normalizarTextoMatch = (texto: string) => {
   return texto
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\w\s]/gi, '')
     .replace(/\s+/g, ' ')
     .trim()
     .toUpperCase();
+};
+
+// CORREÇÃO: Tipagem de retorno explícita adicionada aqui!
+const validarPreco = (valorNota: number, valorCeasa: number): { status: 'ok' | 'divergente'; diferenca: number } => {
+  const diferenca = valorNota - valorCeasa;
+  const isOk = Math.abs(diferenca) < 0.05;
+
+  return {
+    status: isOk ? 'ok' : 'divergente',
+    diferenca
+  };
+};
+
+// ==================== MATCH CEASA ====================
+const encontrarPrecoCeasa = (
+  item: ItemNota,
+  lista: PrecoCeasa[]
+): PrecoCeasa | null => {
+
+  if (!item.produtoNome || !lista || lista.length === 0) return null;
+
+  const nomeItem = normalizarTextoMatch(item.produtoNome);
+
+  // 🔥 1. MATCH EXATO (PRIORIDADE MÁXIMA) - categoria + tipo + kg
+  const matchExato = lista.find(p =>
+    normalizarTextoMatch(p.categoria + ' ' + p.tipo) === nomeItem &&
+    Number(p.kgEmbalagem) === Number(item.kgCaixa)
+  );
+
+  if (matchExato) return matchExato;
+
+  // 🟡 2. MATCH SEM KG (apenas categoria + tipo)
+  const matchSemKg = lista.find(p =>
+    normalizarTextoMatch(p.categoria + ' ' + p.tipo) === nomeItem
+  );
+
+  if (matchSemKg) return matchSemKg;
+
+  // 🟠 3. MATCH PARCIAL CONTROLADO (fallback)
+  const matchParcial = lista.find(p =>
+    nomeItem.includes(normalizarTextoMatch(p.tipo)) &&
+    normalizarTextoMatch(p.categoria).includes(normalizarTextoMatch(item.produtoNome.split(' - ')[0] || ''))
+  );
+
+  return matchParcial || null;
+};
+
+// ==================== VALIDAÇÃO DE ITEM COM CEASA ====================
+const validarItemComCeasa = (
+  item: ItemNota,
+  listaCeasa: PrecoCeasa[]
+): ItemNota => {
+
+  const match = encontrarPrecoCeasa(item, listaCeasa);
+
+  if (!match) {
+    return {
+      ...item,
+      precoCeasa: 0,
+      statusValidacao: 'divergente',
+      diferenca: 0
+    };
+  }
+
+  const precoCeasa = match.valorMc;
+
+  if (!item.precoUnitarioNota) {
+    return {
+      ...item,
+      precoCeasa,
+      statusValidacao: 'divergente',
+      diferenca: 0
+    };
+  }
+
+  const resultado = validarPreco(item.precoUnitarioNota, precoCeasa);
+
+  return {
+    ...item,
+    precoCeasa,
+    statusValidacao: resultado.status,
+    diferenca: resultado.diferenca
+  };
 };
 
 // ==================== SELECTOR PERSONALIZADO ====================
@@ -362,33 +582,13 @@ const UploadPDFButton = ({ onDataExtracted }: { onDataExtracted: (produtos: Prec
         body: formData,
       });
 
-      const text = await response.text();
-      console.log('📦 Resposta bruta da API:', text.substring(0, 200));
-      
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (parseError) {
-        console.error('❌ Erro ao parsear JSON:', text);
-        setUploadProgress('Erro na resposta do servidor');
-        setTimeout(() => {
-          setUploadProgress('');
-          setIsUploading(false);
-        }, 3000);
-        return;
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Erro ao processar PDF');
       }
 
-      if (!response.ok) {
-        setUploadProgress(data.error || 'Erro no servidor');
-        setTimeout(() => {
-          setUploadProgress('');
-          setIsUploading(false);
-        }, 3000);
-        return;
-      }
-
-      if (!data.success || !data.produtos || data.produtos.length === 0) {
-        console.warn('⚠️ Nenhum produto encontrado na resposta:', data);
+      if (!data.produtos || data.produtos.length === 0) {
         setUploadProgress('Nenhum produto reconhecido no PDF');
         setTimeout(() => {
           setUploadProgress('');
@@ -408,7 +608,7 @@ const UploadPDFButton = ({ onDataExtracted }: { onDataExtracted: (produtos: Prec
 
     } catch (error) {
       console.error('❌ Upload error:', error);
-      setUploadProgress('Erro na conexão');
+      setUploadProgress(error instanceof Error ? error.message : 'Erro na conexão');
       setTimeout(() => {
         setUploadProgress('');
         setIsUploading(false);
@@ -477,8 +677,12 @@ export default function NovaConferenciaPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [notaAtual, setNotaAtual] = useState<NotaFiscal | null>(null);
   
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingNotaId, setEditingNotaId] = useState<string | null>(null);
+  
   const [formEmpresa, setFormEmpresa] = useState('');
   const [formEmpenho, setFormEmpenho] = useState('');
+  const [formNumeroNota, setFormNumeroNota] = useState('');
   const [formDataTabela, setFormDataTabela] = useState(() => {
     const hoje = new Date();
     return formatarDataBrasil(hoje);
@@ -504,7 +708,7 @@ export default function NovaConferenciaPage() {
   useEffect(() => {
     const verificarConexao = async () => {
       try {
-        const { data, error } = await supabase.from('ceasa_precos').select('count', { count: 'exact', head: true });
+        const { error } = await supabase.from('ceasa_precos').select('count', { count: 'exact', head: true });
         if (error) throw error;
         setSupabaseStatus('connected');
         console.log('✅ Supabase conectado');
@@ -516,22 +720,33 @@ export default function NovaConferenciaPage() {
     verificarConexao();
   }, []);
 
-  // Carregar dados do localStorage
+  // Carregar nota em andamento
   useEffect(() => {
     const notaEmAndamento = localStorage.getItem('nota_atual_hortifruti');
-    if (notaEmAndamento) setNotaAtual(JSON.parse(notaEmAndamento));
+    if (notaEmAndamento) {
+      const nota = JSON.parse(notaEmAndamento);
+      setNotaAtual(nota);
+      setIsEditing(true);
+      setEditingNotaId(nota.id);
+      setFormEmpresa(nota.empresa);
+      setFormEmpenho(nota.empenho);
+      setFormNumeroNota(nota.numeroNota);
+      setFormDataTabela(nota.dataTabelaCeasa);
+      setItensCeasa(nota.itens);
+    }
     setIsLoaded(true);
   }, []);
 
-  // Salvar nota em andamento no localStorage
+  // Salvar nota em andamento
   useEffect(() => {
-    if (isLoaded) {
-      if (notaAtual) localStorage.setItem('nota_atual_hortifruti', JSON.stringify(notaAtual));
-      else localStorage.removeItem('nota_atual_hortifruti');
+    if (isLoaded && notaAtual) {
+      localStorage.setItem('nota_atual_hortifruti', JSON.stringify(notaAtual));
+    } else if (isLoaded && !notaAtual) {
+      localStorage.removeItem('nota_atual_hortifruti');
     }
   }, [notaAtual, isLoaded]);
 
-  // Carregar preços da CEASA do Supabase
+  // Carregar preços da CEASA
   useEffect(() => {
     const carregarPrecosDoBanco = async () => {
       if (supabaseStatus === 'connected' && formDataTabela) {
@@ -539,82 +754,105 @@ export default function NovaConferenciaPage() {
         if (precos && precos.length > 0) {
           setPrecosCeasa(precos);
           showToast(`${precos.length} preços carregados do banco de dados!`, 'info');
-          console.log(`📦 ${precos.length} preços carregados do Supabase para ${formDataTabela}`);
         }
       }
     };
-    
     carregarPrecosDoBanco();
   }, [formDataTabela, supabaseStatus]);
 
-  // Resetar campos quando categoria muda
+  // 🔥 1. Resetar campos ao mudar a CATEGORIA
   useEffect(() => {
     setSetupProdutoId('');
     setSetupKgCaixa('');
     setSetupValorCaixa('');
     setResetEffect(true);
     setTimeout(() => setResetEffect(false), 500);
-    
-    if (setupCategoria) {
-      console.log(`📁 Categoria alterada para: ${setupCategoria} - Campos resetados`);
-    }
   }, [setupCategoria]);
 
-  // Buscar preço automaticamente ao selecionar tipo
+  // 🔥 2. BUSCAR PREÇO AUTOMATICAMENTE E ZERAR SE NECESSÁRIO
   useEffect(() => {
-    if (!setupCategoria || !setupProdutoId || precosCeasa.length === 0) return;
+    // Se o usuário limpar/mudar o produto e ele ficar vazio, zera o peso e valor imediatamente
+    if (!setupProdutoId) {
+      setSetupKgCaixa('');
+      setSetupValorCaixa('');
+      return;
+    }
+
+    if (!setupCategoria || precosCeasa.length === 0) return;
     
     const produtoSelecionado = PRODUTOS_CONTRATO.find(p => p.id.toString() === setupProdutoId);
     if (!produtoSelecionado) return;
     
     console.log(`🔍 Buscando preço para: ${produtoSelecionado.categoria} - ${produtoSelecionado.nome}`);
     
+    // FUNÇÃO DE MATCH COM PONTUAÇÃO (PRIORIDADE POR ESPECIFICIDADE)
     const encontrarPreco = () => {
-      const categoriaNorm = normalizarTexto(produtoSelecionado.categoria);
-      const nomeNorm = normalizarTexto(produtoSelecionado.nome);
-      
-      const sinonimos: Record<string, string[]> = {
-        'CENOURA': ['CENOURA A', 'CENOURA AA', 'CENOURA COMUM'],
-        'GOIABA': ['GOIABA VERMELHA', 'GOIABA BRANCA', 'GOIABA COMUM'],
-        'COUVE': ['COUVE MANTEIGA', 'COUVE COMUM'],
-        'COUVE-FLOR': ['COUVE FLOR', 'COUVE FLOR MEDIA', 'COUVE FLOR GRANDE'],
-        'CEBOLINHA': ['CEBOLINHA COMUM', 'CEBOLINHA VERDE', 'CEBOLINHA MAÇO'],
-        'CEBOLA COMUM': ['CEBOLA BRANCA', 'CEBOLA COMUM', 'CEBOLA PERA'],
-        'CEBOLA': ['CEBOLA BRANCA', 'CEBOLA PERA', 'CEBOLA ROXA'],
-        'ALFACE': ['ALFACE AMERICANA', 'ALFACE CRESPA', 'ALFACE LISA'],
-        'TOMATE': ['TOMATE LONGA VIDA', 'TOMATE SALADETE', 'TOMATE CEREJA'],
-        'BETERRABA': ['BETERRABA A', 'BETERRABA AA', 'BETERRABA EXTRA']
-      };
-      
-      // Match exato
-      let preco = precosCeasa.find(p => 
-        normalizarTexto(p.categoria) === categoriaNorm &&
-        normalizarTexto(p.tipo) === nomeNorm
+      const categoriaNorm = normalizarTextoMatch(produtoSelecionado.categoria);
+      const nomeNorm = normalizarTextoMatch(produtoSelecionado.nome);
+
+      // Filtra apenas produtos da mesma categoria
+      const candidatos = precosCeasa.filter(p =>
+        normalizarTextoMatch(p.categoria) === categoriaNorm
       );
-      if (preco) return preco;
-      
-      // Match por categoria e nome contido
-      preco = precosCeasa.find(p => 
-        normalizarTexto(p.categoria) === categoriaNorm &&
-        normalizarTexto(p.tipo).includes(nomeNorm)
+
+      if (candidatos.length === 0) return null;
+
+      // 1. MATCH EXATO COMPLETO (PRIORIDADE MÁXIMA)
+      const exato = candidatos.find(p =>
+        normalizarTextoMatch(p.tipo) === nomeNorm
       );
-      if (preco) return preco;
+      if (exato) return exato;
+
+      // 2. MATCH POR PALAVRAS COM PONTUAÇÃO
+      const palavrasBusca = nomeNorm.split(' ');
       
-      // Match por sinônimos
-      const sinonimosLista = sinonimos[nomeNorm] || sinonimos[`${categoriaNorm}|${nomeNorm}`] || [];
-      for (const sinonimo of sinonimosLista) {
-        preco = precosCeasa.find(p => 
-          normalizarTexto(p.categoria) === categoriaNorm &&
-          normalizarTexto(p.tipo).includes(normalizarTexto(sinonimo))
-        );
-        if (preco) return preco;
+      // Sufixos importantes para pontuação extra
+      const sufixosImportantes = ['AA', 'A', 'B', 'C', 'PRIMEIRA', 'SEGUNDA', 'TERCEIRA', 'EXTRA', 'MEDIA', 'GRANDE'];
+      
+      let melhorMatch = null;
+      let melhorScore = 0;
+
+      for (const candidato of candidatos) {
+        const tipo = normalizarTextoMatch(candidato.tipo);
+        const palavrasTipo = tipo.split(' ');
+        
+        let score = 0;
+        
+        // Conta quantas palavras da busca existem no tipo
+        for (const palavra of palavrasBusca) {
+          if (palavrasTipo.includes(palavra)) {
+            score++;
+          }
+        }
+        
+        // BÔNUS: match exato do tipo inteiro contém a busca
+        if (tipo.includes(nomeNorm)) {
+          score += 2;
+        }
+        
+        // BÔNUS: match de sufixos importantes (AA, A, EXTRA, etc)
+        for (const sufixo of sufixosImportantes) {
+          if (nomeNorm.includes(sufixo) && tipo.includes(sufixo)) {
+            score += 3;
+          }
+        }
+        
+        // BÔNUS: quanto mais específico, maior o score
+        if (tipo.length > nomeNorm.length && tipo.includes(nomeNorm)) {
+          score += 1;
+        }
+        
+        if (score > melhorScore) {
+          melhorScore = score;
+          melhorMatch = candidato;
+        }
       }
       
-      // Match por categoria (primeiro da categoria)
-      const precosDaCategoria = precosCeasa.filter(p => 
-        normalizarTexto(p.categoria) === categoriaNorm
-      );
-      if (precosDaCategoria.length > 0) return precosDaCategoria[0];
+      // SÓ RETORNA SE TIVER PONTUAÇÃO MÍNIMA (pelo menos 1 palavra match)
+      if (melhorScore >= 1) {
+        console.log(`📊 Match: "${nomeNorm}" → "${melhorMatch?.tipo}" (score: ${melhorScore})`);
+        return melhorMatch;
+      }
       
       return null;
     };
@@ -628,21 +866,24 @@ export default function NovaConferenciaPage() {
       showToast(`Preço carregado: ${precoEncontrado.kgEmbalagem}kg por ${formatarMoeda(precoEncontrado.valorMc)}`, 'info');
     } else {
       console.warn(`⚠️ Preço não encontrado para: ${produtoSelecionado.categoria} - ${produtoSelecionado.nome}`);
+      
+      // 🔥 ZERA O PESO E O VALOR SE O PREÇO NÃO FOR ENCONTRADO
+      setSetupKgCaixa('');
+      setSetupValorCaixa('');
+      
+      showToast(`Preço não encontrado para ${produtoSelecionado.nome}`, 'error');
     }
   }, [setupCategoria, setupProdutoId, precosCeasa]);
 
   const showToast = (message: string, type: string) => setToast({ message, type });
 
-  // Processar produtos extraídos do PDF
   const handlePDFDataExtracted = async (produtos: PrecoCeasa[]) => {
     console.log('📦 Produtos CEASA recebidos:', produtos.length);
     setPrecosCeasa(produtos);
     
-    // Salvar no Supabase
     if (supabaseStatus === 'connected') {
       try {
         await salvarPrecosCeasa(formatarDataISO(formDataTabela), produtos);
-        console.log('✅ Preços salvos no Supabase');
         showToast(`${produtos.length} preços salvos no banco de dados!`, 'success');
       } catch (error) {
         console.error('❌ Erro ao salvar no Supabase:', error);
@@ -669,7 +910,7 @@ export default function NovaConferenciaPage() {
     const nomeCompleto = `${produto.categoria} - ${produto.nome}`;
 
     const novoItem: ItemNota = {
-      id: Date.now().toString(),
+      id: uuidv4(),
       produtoId: produto.id,
       produtoNome: nomeCompleto,
       desconto: produto.desconto,
@@ -680,7 +921,12 @@ export default function NovaConferenciaPage() {
       quantidadeStr: '',
       quantidade: 0,
       totalSemDesconto: 0,
-      total: 0
+      total: 0,
+      precoUnitarioNotaStr: '',
+      precoUnitarioNota: undefined,
+      totalNota: 0,
+      statusValidacao: undefined,
+      diferenca: undefined
     };
 
     setItensCeasa([...itensCeasa, novoItem]);
@@ -696,16 +942,53 @@ export default function NovaConferenciaPage() {
     showToast('Item removido', 'info');
   };
 
-  const iniciarDigitacaoDaNota = () => {
-    if (!formEmpresa || !formEmpenho || itensCeasa.length === 0) {
-      showToast('Preencha todos os dados e adicione ao menos 1 item.', 'error');
+  // Verifica duplicidade
+  const verificarNotaDuplicada = async (empenho: string, numeroNota: string, notaIdIgnorar?: string): Promise<boolean> => {
+    const notasSalvas = localStorage.getItem('banco_notas_hortifruti');
+    if (notasSalvas) {
+      const bancoNotas = JSON.parse(notasSalvas);
+      const existe = bancoNotas.some((n: NotaFiscal) => 
+        n.empenho === empenho && 
+        n.numeroNota === numeroNota &&
+        n.id !== notaIdIgnorar
+      );
+      if (existe) return true;
+    }
+    
+    if (supabaseStatus === 'connected') {
+      const { data, error } = await supabase
+        .from('notas_fiscais')
+        .select('id')
+        .eq('empenho', empenho)
+        .eq('numero_nota', numeroNota)
+        .neq('id', notaIdIgnorar || '')
+        .maybeSingle();
+      
+      if (!error && data) return true;
+    }
+    
+    return false;
+  };
+
+  const iniciarDigitacaoDaNota = async () => {
+    if (!formEmpresa || !formEmpenho || !formNumeroNota || itensCeasa.length === 0) {
+      showToast('Preencha todos os dados (Empresa, Empenho, NF) e adicione ao menos 1 item.', 'error');
       return;
     }
+    
+    const isDuplicada = await verificarNotaDuplicada(formEmpenho, formNumeroNota, editingNotaId || undefined);
+    if (isDuplicada) {
+      showToast(`❌ Já existe uma nota com NF ${formNumeroNota} para o Empenho ${formEmpenho}.`, 'error');
+      return;
+    }
+    
+    const id = isEditing && editingNotaId ? editingNotaId : uuidv4();
 
     const novaNota: NotaFiscal = {
-      id: Date.now().toString(),
+      id: id,
       empresa: formEmpresa,
       empenho: formEmpenho,
+      numeroNota: formNumeroNota,
       data: formatarDataBrasil(new Date()),
       dataTabelaCeasa: formDataTabela,
       itens: itensCeasa,
@@ -713,33 +996,81 @@ export default function NovaConferenciaPage() {
     };
 
     setNotaAtual(novaNota);
-    setFormEmpresa('');
-    setFormEmpenho('');
-    setItensCeasa([]);
-    showToast(`Nota criada!`, 'success');
+    showToast(`Nota criada! Agora digite as quantidades e preços para validação.`, 'success');
   };
 
-  const handleQuantidadeChange = (id: string, qtdStr: string) => {
+  const handlePrecoNotaChange = (id: string, valorDigitado: string) => {
     if (!notaAtual) return;
-    const qtdNumerica = parseFloat(qtdStr.replace(',', '.')) || 0;
-
+    
+    const valorSanitizado = valorDigitado.replace(/[^0-9,]/g, '');
+    const precoNumerico = parseFloat(valorSanitizado.replace(',', '.')) || 0;
+    
     const novosItens = notaAtual.itens.map(item => {
       if (item.id === id) {
+        const quantidade = item.quantidade || 0;
+        const totalNota = quantidade * precoNumerico;
+        const totalCeasa = quantidade * item.precoUnitarioComDesconto;
+        
+        const validacao = totalCeasa > 0 ? validarPreco(totalNota, totalCeasa) : null;
+        
         return {
           ...item,
-          quantidadeStr: qtdStr,
-          quantidade: qtdNumerica,
-          totalSemDesconto: qtdNumerica * item.precoUnitarioSemDesconto,
-          total: qtdNumerica * item.precoUnitarioComDesconto
+          precoUnitarioNotaStr: valorSanitizado,
+          precoUnitarioNota: precoNumerico,
+          totalNota: totalNota,
+          precoCeasa: totalCeasa,
+          statusValidacao: validacao?.status,
+          diferenca: validacao?.diferenca
         };
       }
       return item;
     });
-
+    
+    const temDivergencia = novosItens.some(i => i.statusValidacao === 'divergente');
+    
     setNotaAtual({
       ...notaAtual,
       itens: novosItens,
-      totalGeral: novosItens.reduce((acc, item) => acc + item.total, 0)
+      totalGeral: novosItens.reduce((acc, item) => acc + (item.totalNota || 0), 0),
+      statusValidacao: temDivergencia ? 'divergente' : 'ok'
+    });
+  };
+
+  const handleQuantidadeChange = (id: string, valorDigitado: string) => {
+    if (!notaAtual) return;
+
+    const valorSanitizado = valorDigitado.replace(/[^0-9,]/g, '');
+    const qtdNumerica = parseFloat(valorSanitizado.replace(',', '.')) || 0;
+    
+    const novosItens = notaAtual.itens.map(item => {
+      if (item.id === id) {
+        const totalNota = qtdNumerica * (item.precoUnitarioNota || 0);
+        const totalCeasa = qtdNumerica * item.precoUnitarioComDesconto;
+        
+        const validacao = totalCeasa > 0 ? validarPreco(totalNota, totalCeasa) : null;
+        
+        return {
+          ...item,
+          quantidadeStr: valorSanitizado,
+          quantidade: qtdNumerica,
+          totalSemDesconto: qtdNumerica * item.precoUnitarioSemDesconto,
+          total: qtdNumerica * item.precoUnitarioComDesconto,
+          totalNota: totalNota,
+          precoCeasa: totalCeasa,
+          statusValidacao: validacao?.status,
+          diferenca: validacao?.diferenca
+        };
+      }
+      return item;
+    });
+    
+    const temDivergencia = novosItens.some(i => i.statusValidacao === 'divergente');
+    
+    setNotaAtual({
+      ...notaAtual,
+      itens: novosItens,
+      totalGeral: novosItens.reduce((acc, item) => acc + (item.totalNota || 0), 0),
+      statusValidacao: temDivergencia ? 'divergente' : 'ok'
     });
   };
 
@@ -749,21 +1080,65 @@ export default function NovaConferenciaPage() {
     setIsSaving(true);
     
     try {
-      // Salvar no localStorage
+      const temDivergencia = notaAtual.itens.some(i => i.statusValidacao === 'divergente');
+      const notaComStatus = {
+        ...notaAtual,
+        statusValidacao: temDivergencia ? 'divergente' : 'ok' as 'ok' | 'divergente'
+      };
+      
       const notasSalvas = localStorage.getItem('banco_notas_hortifruti');
       const bancoNotas = notasSalvas ? JSON.parse(notasSalvas) : [];
-      localStorage.setItem('banco_notas_hortifruti', JSON.stringify([notaAtual, ...bancoNotas]));
       
-      // Salvar no Supabase se conectado
-      if (supabaseStatus === 'connected') {
-        await salvarNotaFiscal(notaAtual);
-        console.log('✅ Nota salva no Supabase');
-        showToast('Nota salva com sucesso no banco de dados!', 'success');
+      let bancoAtualizado;
+      let mensagemSucesso;
+      
+      if (isEditing && editingNotaId) {
+        bancoAtualizado = bancoNotas.map((nota: NotaFiscal) => 
+          nota.id === editingNotaId ? notaComStatus : nota
+        );
+        mensagemSucesso = 'Nota atualizada com sucesso!';
       } else {
-        showToast('Nota salva apenas no navegador', 'info');
+        bancoAtualizado = [notaComStatus, ...bancoNotas];
+        mensagemSucesso = 'Nota salva com sucesso!';
       }
       
+      localStorage.setItem('banco_notas_hortifruti', JSON.stringify(bancoAtualizado));
+      
+      if (supabaseStatus === 'connected') {
+        try {
+          const { error } = await supabase
+            .from('notas_fiscais')
+            .upsert({
+              id: notaComStatus.id,
+              empresa: notaComStatus.empresa,
+              empenho: notaComStatus.empenho,
+              numero_nota: notaComStatus.numeroNota,
+              data: notaComStatus.data,
+              data_tabela_ceasa: notaComStatus.dataTabelaCeasa,
+              itens: notaComStatus.itens,
+              total_geral: notaComStatus.totalGeral,
+              status_validacao: notaComStatus.statusValidacao,
+              updated_at: new Date().toISOString()
+            }, { 
+              onConflict: 'id'
+            });
+          
+          if (error) throw error;
+          console.log('✅ Nota salva/atualizada no Supabase (UPSERT)');
+        } catch (supabaseError) {
+          console.error('⚠️ Erro no Supabase, mas nota salva localmente:', supabaseError);
+        }
+      }
+      
+      showToast(mensagemSucesso, temDivergencia ? 'info' : 'success');
+      
       setNotaAtual(null);
+      setIsEditing(false);
+      setEditingNotaId(null);
+      setFormEmpresa('');
+      setFormEmpenho('');
+      setFormNumeroNota('');
+      setItensCeasa([]);
       localStorage.removeItem('nota_atual_hortifruti');
       router.push('/dashboard/notas');
     } catch (error) {
@@ -777,10 +1152,24 @@ export default function NovaConferenciaPage() {
   const cancelarNota = () => {
     if (confirm("Cancelar conferência? Todos os dados serão perdidos.")) {
       setNotaAtual(null);
+      setIsEditing(false);
+      setEditingNotaId(null);
+      setFormEmpresa('');
+      setFormEmpenho('');
+      setFormNumeroNota('');
+      setItensCeasa([]);
       localStorage.removeItem('nota_atual_hortifruti');
       showToast('Conferência cancelada', 'info');
     }
   };
+
+  const notaTemErro = notaAtual?.statusValidacao === 'divergente';
+  
+  // 🔥 VALIDAÇÃO DO FORMULÁRIO DE ADIÇÃO
+  const isFormValido = setupCategoria?.trim() !== '' && 
+    setupProdutoId?.trim() !== '' && 
+    parseFloat(setupKgCaixa.replace(',', '.')) > 0 && 
+    parseFloat(setupValorCaixa.replace(',', '.')) > 0;
 
   if (!isLoaded) {
     return (
@@ -792,20 +1181,18 @@ export default function NovaConferenciaPage() {
 
   return (
     <div className="space-y-4">
-      {/* CABEÇALHO COMPACTO COM UPLOAD */}
       <div className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white shadow-sm">
             <Package size={16} />
           </div>
           <div>
-            <h1 className="text-base font-bold text-slate-800">Nova Conferência</h1>
-            <p className="text-[11px] text-slate-500">Lançar pesos e valores</p>
+            <h1 className="text-base font-bold text-slate-800">Conferência de Nota</h1>
+            <p className="text-[11px] text-slate-500">Valide os valores contra a tabela CEASA</p>
           </div>
         </div>
         
         <div className="flex items-center gap-2">
-          {/* Status Supabase */}
           {supabaseStatus === 'connected' && (
             <div className="hidden md:flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded-full">
               <Database size={12} className="text-emerald-600" />
@@ -816,7 +1203,6 @@ export default function NovaConferenciaPage() {
         </div>
       </div>
 
-      {/* INDICADOR DE PREÇOS CARREGADOS */}
       {precosCeasa.length > 0 && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -837,16 +1223,15 @@ export default function NovaConferenciaPage() {
 
       {!notaAtual ? (
         <>
-          {/* PASSO 1: DADOS GERAIS */}
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
             <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 bg-emerald-500 rounded flex items-center justify-center text-white text-[10px] font-bold">1</div>
-                <span className="text-sm font-semibold text-slate-700">Setup da Conferência</span>
+                <span className="text-sm font-semibold text-slate-700">Dados da Nota Fiscal</span>
               </div>
             </div>
             
-            <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Empresa</label>
                 <input 
@@ -857,18 +1242,31 @@ export default function NovaConferenciaPage() {
                   className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" 
                 />
               </div>
+              
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Empenho / NF</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Empenho</label>
                 <input 
                   type="text" 
                   value={formEmpenho} 
                   onChange={(e) => setFormEmpenho(e.target.value.toUpperCase())} 
+                  placeholder="Nº do Empenho" 
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" 
+                />
+              </div>
+              
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nº da Nota Fiscal</label>
+                <input 
+                  type="text" 
+                  value={formNumeroNota} 
+                  onChange={(e) => setFormNumeroNota(e.target.value.toUpperCase())} 
                   placeholder="Número da NF" 
                   className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" 
                 />
               </div>
+              
               <div>
-                <label className="block text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Tabela Ceasa</label>
+                <label className="block text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Tabela CEASA</label>
                 <input 
                   type="date" 
                   value={(() => {
@@ -890,12 +1288,11 @@ export default function NovaConferenciaPage() {
             </div>
           </div>
 
-          {/* PASSO 2: PRODUTOS */}
           <div className="bg-white border border-slate-200 rounded-xl overflow-visible shadow-sm">
             <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 bg-slate-600 rounded flex items-center justify-center text-white text-[10px] font-bold">2</div>
-                <span className="text-sm font-semibold text-slate-700">Montar Carga Ceasa</span>
+                <span className="text-sm font-semibold text-slate-700">Itens da Nota</span>
               </div>
             </div>
 
@@ -913,7 +1310,7 @@ export default function NovaConferenciaPage() {
                 </div>
                 
                 <div className="flex-1 min-w-[180px]">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Tipo</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Produto</label>
                   <PremiumSelect
                     value={setupProdutoId}
                     onChange={setSetupProdutoId}
@@ -958,7 +1355,10 @@ export default function NovaConferenciaPage() {
                 
                 <button 
                   type="submit" 
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center gap-1.5 text-sm h-[38px]"
+                  disabled={!isFormValido}
+                  className={`bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center gap-1.5 text-sm h-[38px] ${
+                    !isFormValido ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
                   <Plus size={14} /> Adicionar
                 </button>
@@ -967,7 +1367,7 @@ export default function NovaConferenciaPage() {
               {itensCeasa.length > 0 && (
                 <div className="mt-4 border border-slate-200 rounded-lg overflow-hidden">
                   <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex justify-between items-center">
-                    <span className="font-semibold text-xs text-slate-600">Resumo da Carga</span>
+                    <span className="font-semibold text-xs text-slate-600">Itens adicionados</span>
                     <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">{itensCeasa.length} itens</span>
                   </div>
                   <div className="overflow-x-auto">
@@ -976,7 +1376,7 @@ export default function NovaConferenciaPage() {
                         <tr>
                           <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase">Produto</th>
                           <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase text-center">Ref.</th>
-                          <th className="px-3 py-2 text-[10px] font-bold text-emerald-600 uppercase text-right">Preço Final</th>
+                          <th className="px-3 py-2 text-[10px] font-bold text-emerald-600 uppercase text-right">Preço Unitário</th>
                           <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase text-center w-10">Ação</th>
                         </tr>
                       </thead>
@@ -1006,15 +1406,15 @@ export default function NovaConferenciaPage() {
 
               <button 
                 onClick={iniciarDigitacaoDaNota} 
-                disabled={itensCeasa.length === 0 || !formEmpresa || !formEmpenho} 
+                disabled={itensCeasa.length === 0 || !formEmpresa || !formEmpenho || !formNumeroNota} 
                 className={`mt-4 w-full py-2.5 rounded-lg font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 ${
-                  itensCeasa.length === 0 || !formEmpresa || !formEmpenho 
+                  itensCeasa.length === 0 || !formEmpresa || !formEmpenho || !formNumeroNota
                     ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' 
                     : 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0'
                 }`}
               >
                 <ArrowRight size={14} />
-                {itensCeasa.length === 0 || !formEmpresa || !formEmpenho ? 'Preencha todos os dados' : 'Iniciar Lançamento'}
+                {isEditing ? 'Atualizar Validação' : 'Iniciar Validação'}
               </button>
             </div>
           </div>
@@ -1026,11 +1426,19 @@ export default function NovaConferenciaPage() {
             
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-1">
-                <span className="bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full tracking-wide">Digitação Ativa</span>
-                <span className="text-slate-400 text-[10px]">Tabela: {notaAtual.dataTabelaCeasa}</span>
+                <span className="bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full tracking-wide">Validação Ativa</span>
+                <span className="text-slate-400 text-[10px]">Base CEASA: {notaAtual.dataTabelaCeasa}</span>
+                {isEditing && (
+                  <span className="bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full tracking-wide flex items-center gap-1">
+                    <Pencil size={10} />
+                    Editando
+                  </span>
+                )}
               </div>
               <h2 className="text-lg font-bold text-white">{notaAtual.empresa}</h2>
-              <p className="text-emerald-400 text-xs">NF: {notaAtual.empenho}</p>
+              <p className="text-emerald-400 text-xs">
+                Empenho: {notaAtual.empenho} | NF: {notaAtual.numeroNota}
+              </p>
             </div>
             
             <div className="flex gap-2 relative z-10">
@@ -1040,12 +1448,34 @@ export default function NovaConferenciaPage() {
               <button 
                 onClick={finalizarNota} 
                 disabled={isSaving}
-                className="bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-900 font-bold px-5 py-1.5 rounded-lg transition-all shadow-md hover:shadow-lg flex items-center gap-1.5 text-sm disabled:opacity-50"
+                className={`font-bold px-5 py-1.5 rounded-lg transition-all shadow-md hover:shadow-lg flex items-center gap-1.5 text-sm ${
+                  notaTemErro 
+                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-900'
+                    : 'bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-900'
+                } disabled:opacity-50`}
               >
                 {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                {isSaving ? 'Salvando...' : 'Salvar'}
+                {isSaving ? 'Salvando...' : isEditing ? 'Atualizar Nota' : (notaTemErro ? 'Salvar Divergências' : 'Finalizar Validação')}
               </button>
             </div>
+          </div>
+
+          <div className={`rounded-lg p-3 flex items-center gap-2 ${
+            notaTemErro 
+              ? 'bg-rose-100 border border-rose-300 text-rose-700'
+              : 'bg-emerald-100 border border-emerald-300 text-emerald-700'
+          }`}>
+            {notaTemErro ? (
+              <>
+                <AlertCircle size={18} />
+                <span className="text-sm font-semibold">❌ Nota com divergências — revisar antes de enviar ao fornecedor</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle size={18} />
+                <span className="text-sm font-semibold">✔ Nota validada com sucesso — todos os valores conferem com a tabela CEASA</span>
+              </>
+            )}
           </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -1055,42 +1485,104 @@ export default function NovaConferenciaPage() {
                   <tr>
                     <th className="p-3 text-[10px] font-bold text-slate-400 uppercase">Produto</th>
                     <th className="p-3 text-[10px] font-bold text-slate-400 uppercase text-center">Ref.</th>
-                    <th className="p-3 text-[10px] font-bold text-slate-400 uppercase text-center">Desc</th>
-                    <th className="p-3 text-[10px] font-bold text-emerald-600 uppercase text-right">Preço</th>
-                    <th className="p-3 text-[10px] font-bold text-white bg-emerald-500 uppercase text-center">Peso (KG)</th>
-                    <th className="p-3 text-[10px] font-bold text-slate-400 uppercase text-right">Subtotal</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-400 uppercase text-center">Desconto</th>
+                    <th className="p-3 text-[10px] font-bold text-emerald-600 uppercase text-right">Preço CEASA/KG</th>
+                    <th className="p-3 text-[10px] font-bold text-amber-600 uppercase text-right">Preço NF/KG</th>
+                    <th className="p-3 text-[10px] font-bold text-white bg-emerald-500 uppercase text-center">Quantidade (KG)</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-400 uppercase text-right">Total Nota</th>
+                    <th className="p-3 text-[10px] font-bold text-slate-400 uppercase text-center">Validação</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {notaAtual.itens.map((item) => (
-                    <tr key={item.id} className="hover:bg-emerald-50/30 transition-colors">
+                    <tr 
+                      key={item.id} 
+                      className={`transition-all ${
+                        item.statusValidacao === 'divergente'
+                          ? 'bg-rose-50 border-l-4 border-l-rose-500'
+                          : item.statusValidacao === 'ok'
+                          ? 'bg-emerald-50/40'
+                          : 'hover:bg-slate-50'
+                      }`}
+                    >
                       <td className="p-3 font-semibold text-slate-700 text-xs">{item.produtoNome}</td>
                       <td className="p-3 text-center text-slate-500 text-xs">{item.kgCaixa}kg</td>
                       <td className="p-3 text-center font-bold text-rose-500 bg-rose-50/50 text-xs">-{item.desconto}%</td>
-                      <td className="p-3 text-right font-bold text-slate-700 text-sm">{formatarMoeda(item.precoUnitarioComDesconto)}</td>
+                      <td className="p-3 text-right font-bold text-emerald-600 text-sm">
+                        {formatarMoeda(item.precoUnitarioComDesconto)}
+                      </td>
+                      
+                      <td className="p-3 text-right">
+                        <input 
+                          type="text" 
+                          inputMode="decimal"
+                          value={item.precoUnitarioNotaStr ?? ''} 
+                          onChange={(e) => handlePrecoNotaChange(item.id, e.target.value)} 
+                          placeholder="0,00" 
+                          className="w-24 text-right font-bold text-sm text-amber-700 border-2 border-amber-200 rounded-lg py-1.5 px-2 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 bg-white" 
+                        />
+                      </td>
+
                       <td className="p-2 bg-emerald-50/50">
                         <input 
                           type="text" 
-                          value={item.quantidadeStr} 
+                          inputMode="decimal"
+                          value={item.quantidadeStr ?? ''} 
                           onChange={(e) => handleQuantidadeChange(item.id, e.target.value)} 
                           placeholder="0,00" 
                           className="w-24 text-center font-bold text-base text-emerald-900 border-2 border-emerald-200 rounded-lg py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white" 
                         />
                       </td>
-                      <td className="p-3 text-right font-bold text-emerald-600">{formatarMoeda(item.total)}</td>
+
+                      <td className="p-3 text-right font-bold text-slate-700 text-sm">
+                        {formatarMoeda(item.totalNota || 0)}
+                        {item.statusValidacao === 'divergente' && item.diferenca && (
+                          <div className="text-[10px] text-rose-600 font-semibold mt-1">
+                            dif: {formatarMoeda(item.diferenca)}
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-3 text-center">
+                        {item.statusValidacao === 'divergente' && (
+                          <div className="text-rose-600 text-xs font-semibold flex items-center gap-1 justify-center">
+                            <AlertCircle size={14} /> Divergente
+                          </div>
+                        )}
+                        {item.statusValidacao === 'ok' && (
+                          <div className="text-emerald-600 text-xs font-semibold flex items-center gap-1 justify-center">
+                            <CheckCircle size={14} /> Válido
+                          </div>
+                        )}
+                        {!item.statusValidacao && (
+                          <div className="text-slate-400 text-xs">Aguardando</div>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             
-            <div className="bg-slate-800 p-4 flex flex-col md:flex-row justify-between items-center gap-2 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-[60px] pointer-events-none"></div>
-              <div className="relative z-10">
-                <span className="text-slate-400 uppercase font-bold tracking-wider text-[9px]">Total a Pagar</span>
+            <div className={`p-4 flex flex-col md:flex-row justify-between items-center gap-2 ${
+              notaTemErro ? 'bg-rose-50' : 'bg-emerald-50'
+            }`}>
+              <div className="flex items-center gap-2">
+                {notaTemErro ? (
+                  <AlertCircle size={20} className="text-rose-600" />
+                ) : (
+                  <CheckCircle size={20} className="text-emerald-600" />
+                )}
+                <span className={`text-sm font-bold ${notaTemErro ? 'text-rose-700' : 'text-emerald-700'}`}>
+                  {notaTemErro 
+                    ? 'NOTA COM DIVERGÊNCIAS - Enviar correção ao fornecedor' 
+                    : 'NOTA VALIDADA - Todos os valores conferem'}
+                </span>
               </div>
-              <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200 relative z-10">
-                {formatarMoeda(notaAtual.totalGeral)}
+              <div className="text-right">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wide">Total da Nota</p>
+                <p className={`text-2xl font-bold ${notaTemErro ? 'text-rose-600' : 'text-emerald-600'}`}>
+                  {formatarMoeda(notaAtual.totalGeral || 0)}
+                </p>
               </div>
             </div>
           </div>

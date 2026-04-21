@@ -1,13 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { PDFViewer, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   FileText, 
   Wallet, 
-  BarChart3, 
   Eye, 
   Pencil, 
   Trash2, 
@@ -15,8 +13,17 @@ import {
   ClipboardList,
   Calendar,
   Package,
-  TrendingUp
+  AlertTriangle,
+  RefreshCw,
+  Cloud,
+  CloudOff,
+  Layers,
+  List,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase/client';
+import { listarNotasFiscais, deletarNotaFiscal } from '@/lib/supabase/db';
 
 // ==================== TIPOS ====================
 interface ItemNota {
@@ -32,16 +39,33 @@ interface ItemNota {
   quantidade: number;
   totalSemDesconto: number;
   total: number;
+  precoUnitarioNotaStr?: string;
+  precoUnitarioNota?: number;
+  totalNota?: number;
+  precoCeasa?: number;
+  statusValidacao?: 'ok' | 'divergente';
+  diferenca?: number;
 }
 
 interface NotaFiscal {
   id: string;
   empresa: string;
   empenho: string;
+  numeroNota: string;
   data: string;
+  dataISO: string;
   dataTabelaCeasa: string;
   itens: ItemNota[];
   totalGeral: number;
+  statusValidacao?: 'ok' | 'divergente';
+}
+
+interface EmpenhoAgrupado {
+  numero: string;
+  empresa: string;
+  notas: NotaFiscal[];
+  totalGeral: number;
+  totalDivergencias: number;
 }
 
 // ==================== UTILITÁRIOS ====================
@@ -54,240 +78,17 @@ const formatarMoeda = (valor: number) => {
   }).format(valor);
 };
 
-// ==================== ESTILOS PDF ====================
-const pdfStyles = StyleSheet.create({
-  page: {
-    padding: 40,
-    fontSize: 9,
-    fontFamily: 'Helvetica',
-    backgroundColor: '#ffffff',
-  },
-  headerInstitucional: {
-    marginBottom: 20,
-    borderBottomWidth: 2,
-    borderBottomColor: '#059669',
-    paddingBottom: 12,
-  },
-  prefeituraLabel: {
-    fontSize: 8,
-    color: '#6b7280',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  tituloPrincipal: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#064e3b',
-    marginBottom: 2,
-  },
-  subtitulo: {
-    fontSize: 8,
-    color: '#6b7280',
-  },
-  infoGrid: {
-    marginBottom: 16,
-    flexDirection: 'row',
-    gap: 16,
-  },
-  infoColumn: {
-    flex: 1,
-  },
-  infoRow: {
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  infoLabel: {
-    width: 100,
-    fontSize: 7,
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    fontWeight: 'bold',
-  },
-  infoValue: {
-    flex: 1,
-    fontSize: 9,
-    color: '#1f2937',
-    fontWeight: 'bold',
-  },
-  protocoloBox: {
-    marginBottom: 16,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  protocoloValue: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#064e3b',
-  },
-  tableContainer: {
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#064e3b',
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-  },
-  tableHeaderText: {
-    color: '#ffffff',
-    fontSize: 7,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    paddingVertical: 5,
-    paddingHorizontal: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  tableRowAlt: {
-    flexDirection: 'row',
-    paddingVertical: 5,
-    paddingHorizontal: 6,
-    backgroundColor: '#f9fafb',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  colProduto: { width: '32%', fontSize: 8 },
-  colKg: { width: '8%', textAlign: 'center', fontSize: 8 },
-  colValorCx: { width: '10%', textAlign: 'right', fontSize: 8 },
-  colPrecoBase: { width: '9%', textAlign: 'right', fontSize: 7, color: '#6b7280' },
-  colDesconto: { width: '7%', textAlign: 'center', fontSize: 7 },
-  colPrecoFinal: { width: '10%', textAlign: 'right', fontSize: 8, fontWeight: 'bold' },
-  colQuantidade: { width: '10%', textAlign: 'center', fontSize: 8, fontWeight: 'bold' },
-  colTotal: { width: '14%', textAlign: 'right', fontSize: 8, fontWeight: 'bold', color: '#059669' },
-  resumoContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: 12,
-    gap: 16,
-  },
-  resumoValue: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  totalBox: {
-    marginBottom: 20,
-    padding: 12,
-    backgroundColor: '#f0fdf4',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  totalValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#059669',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 40,
-    right: 40,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 6,
-    color: '#9ca3af',
-  },
-});
+const formatarDataBR = (dataISO?: string) => {
+  if (!dataISO) return '-';
+  const partes = dataISO.split('-');
+  if (partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  return dataISO;
+};
 
-// ==================== COMPONENTE PDF ====================
-const NotaFiscalPDF = ({ nota }: { nota: NotaFiscal }) => {
-  const totalItens = nota.itens.reduce((acc, item) => acc + item.quantidade, 0);
-
-  return (
-    <Document>
-      <Page size="A4" style={pdfStyles.page}>
-        <View style={pdfStyles.headerInstitucional}>
-          <Text style={pdfStyles.prefeituraLabel}>PREFEITURA DE MARINGÁ • SECRETARIA DE SAÚDE • CAPS 3</Text>
-          <Text style={pdfStyles.tituloPrincipal}>NOTA DE CONFERÊNCIA</Text>
-          <Text style={pdfStyles.subtitulo}>Sistema Oficial de Conferência de Hortifrúti</Text>
-        </View>
-
-        <View style={pdfStyles.infoGrid}>
-          <View style={pdfStyles.infoColumn}>
-            <View style={pdfStyles.infoRow}>
-              <Text style={pdfStyles.infoLabel}>FORNECEDOR</Text>
-              <Text style={pdfStyles.infoValue}>{nota.empresa}</Text>
-            </View>
-            <View style={pdfStyles.infoRow}>
-              <Text style={pdfStyles.infoLabel}>EMPENHO/NF</Text>
-              <Text style={pdfStyles.infoValue}>{nota.empenho}</Text>
-            </View>
-          </View>
-          <View style={pdfStyles.infoColumn}>
-            <View style={pdfStyles.infoRow}>
-              <Text style={pdfStyles.infoLabel}>DATA</Text>
-              <Text style={pdfStyles.infoValue}>{nota.data}</Text>
-            </View>
-            <View style={pdfStyles.infoRow}>
-              <Text style={pdfStyles.infoLabel}>TABELA CEASA</Text>
-              <Text style={pdfStyles.infoValue}>{nota.dataTabelaCeasa}</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={pdfStyles.protocoloBox}>
-          <Text style={pdfStyles.protocoloValue}>Protocolo: CAPS-3-{nota.id.slice(-8)}</Text>
-        </View>
-
-        <View style={pdfStyles.tableContainer}>
-          <View style={pdfStyles.tableHeader}>
-            <Text style={[pdfStyles.tableHeaderText, pdfStyles.colProduto]}>PRODUTO</Text>
-            <Text style={[pdfStyles.tableHeaderText, pdfStyles.colKg]}>KG/CX</Text>
-            <Text style={[pdfStyles.tableHeaderText, pdfStyles.colValorCx]}>VALOR CX</Text>
-            <Text style={[pdfStyles.tableHeaderText, pdfStyles.colPrecoBase]}>PREÇO KG</Text>
-            <Text style={[pdfStyles.tableHeaderText, pdfStyles.colDesconto]}>DESC</Text>
-            <Text style={[pdfStyles.tableHeaderText, pdfStyles.colPrecoFinal]}>PREÇO FINAL</Text>
-            <Text style={[pdfStyles.tableHeaderText, pdfStyles.colQuantidade]}>QTD</Text>
-            <Text style={[pdfStyles.tableHeaderText, pdfStyles.colTotal]}>TOTAL</Text>
-          </View>
-          {nota.itens.map((item, idx) => (
-            <View style={idx % 2 === 0 ? pdfStyles.tableRow : pdfStyles.tableRowAlt} key={idx}>
-              <Text style={pdfStyles.colProduto}>{item.produtoNome}</Text>
-              <Text style={pdfStyles.colKg}>{item.kgCaixa}kg</Text>
-              <Text style={pdfStyles.colValorCx}>{formatarMoeda(item.valorCaixa)}</Text>
-              <Text style={pdfStyles.colPrecoBase}>{formatarMoeda(item.precoUnitarioSemDesconto)}</Text>
-              <Text style={pdfStyles.colDesconto}>-{item.desconto}%</Text>
-              <Text style={pdfStyles.colPrecoFinal}>{formatarMoeda(item.precoUnitarioComDesconto)}</Text>
-              <Text style={pdfStyles.colQuantidade}>{item.quantidade}kg</Text>
-              <Text style={pdfStyles.colTotal}>{formatarMoeda(item.total)}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={pdfStyles.resumoContainer}>
-          <Text style={pdfStyles.resumoValue}>{nota.itens.length} itens</Text>
-          <Text style={pdfStyles.resumoValue}>{totalItens.toFixed(2)} kg total</Text>
-        </View>
-
-        <View style={pdfStyles.totalBox}>
-          <Text style={{ fontSize: 9, color: '#064e3b', fontWeight: 'bold' }}>TOTAL A PAGAR</Text>
-          <Text style={pdfStyles.totalValue}>{formatarMoeda(nota.totalGeral)}</Text>
-        </View>
-
-        <View style={pdfStyles.footer}>
-          <Text style={pdfStyles.footerText}>Documento emitido eletronicamente • {new Date().toLocaleString('pt-BR')}</Text>
-        </View>
-      </Page>
-    </Document>
-  );
+const formatarDataISO = (dataBR: string) => {
+  const partes = dataBR.split('/');
+  if (partes.length === 3) return `${partes[2]}-${partes[1]}-${partes[0]}`;
+  return dataBR;
 };
 
 // ==================== TOAST ====================
@@ -310,49 +111,43 @@ const Toast = ({ message, type, onClose }: { message: string; type: 'success' | 
   );
 };
 
-// ==================== PDF MODAL ====================
-const PDFModal = ({ nota, onClose }: { nota: NotaFiscal | null; onClose: () => void }) => {
-  if (!nota) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl h-[85vh] flex flex-col animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-        <div className="bg-slate-800 p-3 rounded-t-xl flex justify-between items-center">
-          <span className="text-white text-sm font-semibold">Nota de Conferência</span>
-          <button onClick={onClose} className="text-white/80 hover:text-white text-sm transition">Fechar</button>
-        </div>
-        <div className="flex-1">
-          <PDFViewer width="100%" height="100%" className="rounded-b-xl">
-            <NotaFiscalPDF nota={nota} />
-          </PDFViewer>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==================== NOTA CARD COM ÍCONES MODERNOS ====================
-const NotaCard = ({ nota, onView, onDelete, onEdit }: { 
+// ==================== COMPONENTE: NOTA CARD ====================
+const NotaCard = ({ nota, onView, onDelete, onEdit, onDivergencia }: { 
   nota: NotaFiscal; 
   onView: () => void; 
   onDelete: () => void; 
   onEdit: (nota: NotaFiscal) => void;
+  onDivergencia: (nota: NotaFiscal) => void;
 }) => {
-  const totalItens = nota.itens.reduce((acc, item) => acc + item.quantidade, 0);
+  if (!nota || !nota.itens || !nota.id) return null;
+  
+  const totalItens = nota.itens.reduce((acc, item) => acc + (item.quantidade || 0), 0);
+  const temDivergencia = nota.statusValidacao === 'divergente' || nota.itens.some(i => i.statusValidacao === 'divergente');
 
   return (
-    <div className="group bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between transition-all duration-200 hover:shadow-lg hover:border-emerald-300 hover:-translate-y-[2px]">
+    <div className={`group bg-white border rounded-xl px-4 py-3 flex items-center justify-between transition-all duration-200 hover:shadow-lg hover:-translate-y-[2px] ${
+      temDivergencia 
+        ? 'border-amber-300 bg-amber-50/30 hover:border-amber-400' 
+        : 'border-slate-200 hover:border-emerald-300'
+    }`}>
       
-      {/* LEFT - INFORMAÇÕES */}
       <div className="flex-1">
         <div className="flex items-center gap-3 flex-wrap">
+          {temDivergencia && (
+            <span className="text-xs font-medium text-amber-600 bg-amber-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+              <AlertTriangle size={10} />
+              Divergente
+            </span>
+          )}
           <p className="text-sm font-semibold text-slate-800 group-hover:text-emerald-700 transition">
-            {nota.empresa}
+            {nota.empresa || '-'}
           </p>
           <span className="text-xs text-slate-300">•</span>
-          <p className="text-xs text-slate-500">{nota.empenho}</p>
+          <p className="text-xs text-slate-500">Empenho: {nota.empenho || '-'}</p>
           <span className="text-xs text-slate-300">•</span>
-          <p className="text-xs text-slate-500">{nota.data}</p>
+          <p className="text-xs font-mono text-slate-600">NF: {nota.numeroNota || '-'}</p>
+          <span className="text-xs text-slate-300">•</span>
+          <p className="text-xs text-slate-500">{nota.data || '-'}</p>
           <span className="text-xs text-slate-300">•</span>
           <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md flex items-center gap-1">
             <Package size={10} />
@@ -361,49 +156,109 @@ const NotaCard = ({ nota, onView, onDelete, onEdit }: {
         </div>
         <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
           <Calendar size={10} />
-          Tabela Ceasa: {nota.dataTabelaCeasa}
+          Tabela Ceasa: {nota.dataTabelaCeasa || '-'}
         </p>
       </div>
 
-      {/* RIGHT - AÇÕES COM ÍCONES */}
       <div className="flex items-center gap-3">
-        
-        {/* TOTAL */}
         <div className="text-right mr-2">
           <p className="text-[10px] text-slate-400 uppercase tracking-wide">Total</p>
-          <p className="text-sm font-bold text-emerald-600">
-            {formatarMoeda(nota.totalGeral)}
+          <p className={`text-sm font-bold ${temDivergencia ? 'text-amber-600' : 'text-emerald-600'}`}>
+            {formatarMoeda(nota.totalGeral || 0)}
           </p>
         </div>
 
-        {/* BOTÕES DE AÇÃO COM ÍCONES LUCIDE */}
         <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-all duration-200">
-          
-          <button
-            onClick={onView}
-            className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all duration-200"
-            title="Visualizar nota"
-          >
+          <button onClick={onView} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all duration-200" title="Visualizar nota">
             <Eye size={16} />
           </button>
-
-          <button
-            onClick={() => onEdit(nota)}
-            className="p-2 rounded-lg hover:bg-blue-50 text-slate-500 hover:text-blue-600 transition-all duration-200"
-            title="Editar nota"
-          >
+          <button onClick={() => onEdit(nota)} className="p-2 rounded-lg hover:bg-blue-50 text-slate-500 hover:text-blue-600 transition-all duration-200" title="Editar nota">
             <Pencil size={16} />
           </button>
-
-          <button
-            onClick={onDelete}
-            className="p-2 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all duration-200"
-            title="Excluir nota"
-          >
+          <button onClick={() => onDivergencia(nota)} className="p-2 rounded-lg hover:bg-amber-50 text-slate-500 hover:text-amber-600 transition-all duration-200" title="Gerar relatório de divergência">
+            <AlertTriangle size={16} />
+          </button>
+          <button onClick={onDelete} className="p-2 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all duration-200" title="Excluir nota">
             <Trash2 size={16} />
           </button>
         </div>
       </div>
+    </div>
+  );
+};
+
+// ==================== COMPONENTE: EMPENHO CARD ====================
+const EmpenhoCard = ({ 
+  empenho, 
+  expanded, 
+  onToggle,
+  onViewNota,
+  onEditNota,
+  onDeleteNota,
+  onDivergenciaNota
+}: { 
+  empenho: EmpenhoAgrupado;
+  expanded: boolean;
+  onToggle: () => void;
+  onViewNota: (nota: NotaFiscal) => void;
+  onEditNota: (nota: NotaFiscal) => void;
+  onDeleteNota: (id: string) => void;
+  onDivergenciaNota: (nota: NotaFiscal) => void;
+}) => {
+  const temDivergencia = empenho.totalDivergencias > 0;
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200">
+      <button
+        onClick={onToggle}
+        className="w-full px-4 py-3 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white hover:from-slate-100 transition-all duration-200"
+      >
+        <div className="flex items-center gap-3">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${temDivergencia ? 'bg-amber-100' : 'bg-emerald-100'}`}>
+            <Layers size={16} className={temDivergencia ? 'text-amber-600' : 'text-emerald-600'} />
+          </div>
+          <div className="text-left">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-slate-800">Empenho: {empenho.numero}</span>
+              <span className="text-xs text-slate-400">•</span>
+              <span className="text-sm text-slate-600">{empenho.empresa}</span>
+              {temDivergencia && (
+                <span className="text-xs font-medium text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <AlertTriangle size={10} />
+                  {empenho.totalDivergencias} divergência(s)
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {empenho.notas.length} nota(s) fiscal(is)
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-[10px] text-slate-400 uppercase tracking-wide">Total Empenho</p>
+            <p className={`text-sm font-bold ${temDivergencia ? 'text-amber-600' : 'text-emerald-600'}`}>
+              {formatarMoeda(empenho.totalGeral)}
+            </p>
+          </div>
+          {expanded ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-slate-100 p-3 space-y-2 bg-slate-50/30">
+          {empenho.notas.map((nota) => (
+            <NotaCard
+              key={nota.id}
+              nota={nota}
+              onView={() => onViewNota(nota)}
+              onEdit={() => onEditNota(nota)}
+              onDelete={() => onDeleteNota(nota.id)}
+              onDivergencia={() => onDivergenciaNota(nota)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -413,29 +268,198 @@ export default function NotasFinalizadasPage() {
   const router = useRouter();
   const [isLoaded, setIsLoaded] = useState(false);
   const [bancoNotas, setBancoNotas] = useState<NotaFiscal[]>([]);
-  const [notaParaVisualizar, setNotaParaVisualizar] = useState<NotaFiscal | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [supabaseStatus, setSupabaseStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'grouped'>('grouped');
+  const [expandedEmpenhos, setExpandedEmpenhos] = useState<Set<string>>(new Set());
+
+  // VERIFICAR CONEXÃO COM SUPABASE
+  useEffect(() => {
+    const verificarConexao = async () => {
+      try {
+        const { error } = await supabase.from('notas_fiscais').select('count', { count: 'exact', head: true });
+        if (error) throw error;
+        setSupabaseStatus('connected');
+        console.log('✅ Supabase conectado');
+      } catch (error) {
+        setSupabaseStatus('disconnected');
+        console.warn('⚠️ Supabase desconectado, usando apenas localStorage');
+      }
+    };
+    verificarConexao();
+  }, []);
+
+  // Carregar notas
+  const carregarNotas = async () => {
+    try {
+      if (supabaseStatus === 'connected') {
+        try {
+          const notasDoSupabase = await listarNotasFiscais();
+          if (notasDoSupabase && notasDoSupabase.length > 0) {
+            const notasConvertidas = notasDoSupabase.map((nota: any) => {
+              const dataISO = nota.data;
+              return {
+                id: nota.id,
+                empresa: nota.empresa,
+                empenho: nota.empenho,
+                numeroNota: nota.numero_nota,
+                data: formatarDataBR(dataISO),
+                dataISO: dataISO,
+                dataTabelaCeasa: formatarDataBR(nota.data_tabela_ceasa),
+                itens: nota.itens || [],
+                totalGeral: nota.total_geral || 0,
+                statusValidacao: nota.status_validacao
+              };
+            });
+            
+            notasConvertidas.sort((a, b) => {
+              if (!a.dataISO && !b.dataISO) return 0;
+              if (!a.dataISO) return 1;
+              if (!b.dataISO) return -1;
+              return b.dataISO.localeCompare(a.dataISO);
+            });
+            
+            setBancoNotas(notasConvertidas);
+            localStorage.setItem('banco_notas_hortifruti', JSON.stringify(notasConvertidas));
+            return;
+          }
+        } catch (supabaseError) {
+          console.warn('⚠️ Erro ao carregar do Supabase:', supabaseError);
+        }
+      }
+      
+      const notasSalvas = localStorage.getItem('banco_notas_hortifruti');
+      if (notasSalvas) {
+        const parsed = JSON.parse(notasSalvas);
+        const notasValidas = Array.isArray(parsed) ? parsed.filter((n: any) => 
+          n && typeof n.id === 'string' && typeof n.empresa === 'string' && Array.isArray(n.itens)
+        ) : [];
+        
+        const notasUnicasMap = new Map<string, NotaFiscal>();
+        for (const nota of notasValidas) {
+          if (!notasUnicasMap.has(nota.id)) {
+            notasUnicasMap.set(nota.id, nota);
+          }
+        }
+        
+        const notasUnicas = Array.from(notasUnicasMap.values());
+        
+        notasUnicas.sort((a, b) => {
+          const dataA = (a as any).dataISO || formatarDataISO(a.data);
+          const dataB = (b as any).dataISO || formatarDataISO(b.data);
+          if (!dataA && !dataB) return 0;
+          if (!dataA) return 1;
+          if (!dataB) return -1;
+          return dataB.localeCompare(dataA);
+        });
+        
+        setBancoNotas(notasUnicas);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar notas:', error);
+      setBancoNotas([]);
+    }
+  };
+
+  const agruparPorEmpenho = (notas: NotaFiscal[]): EmpenhoAgrupado[] => {
+    const grupos = new Map<string, EmpenhoAgrupado>();
+    
+    for (const nota of notas) {
+      if (!grupos.has(nota.empenho)) {
+        grupos.set(nota.empenho, {
+          numero: nota.empenho,
+          empresa: nota.empresa,
+          notas: [],
+          totalGeral: 0,
+          totalDivergencias: 0
+        });
+      }
+      
+      const grupo = grupos.get(nota.empenho)!;
+      grupo.notas.push(nota);
+      grupo.totalGeral += nota.totalGeral;
+      if (nota.statusValidacao === 'divergente') {
+        grupo.totalDivergencias++;
+      }
+    }
+    
+    const agrupado = Array.from(grupos.values());
+    agrupado.sort((a, b) => {
+      const dataA = a.notas[0]?.dataISO || formatarDataISO(a.notas[0]?.data || '');
+      const dataB = b.notas[0]?.dataISO || formatarDataISO(b.notas[0]?.data || '');
+      return dataB.localeCompare(dataA);
+    });
+    
+    return agrupado;
+  };
+
+  const toggleEmpenho = (empenhoNumero: string) => {
+    setExpandedEmpenhos(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(empenhoNumero)) {
+        newSet.delete(empenhoNumero);
+      } else {
+        newSet.add(empenhoNumero);
+      }
+      return newSet;
+    });
+  };
+
+  const expandirTodos = () => {
+    const empenhos = agruparPorEmpenho(notasFiltradas);
+    const todosNumeros = new Set(empenhos.map(e => e.numero));
+    setExpandedEmpenhos(todosNumeros);
+  };
+
+  const recolherTodos = () => {
+    setExpandedEmpenhos(new Set());
+  };
+
+  const forcarSincronizacao = async () => {
+    if (supabaseStatus !== 'connected') {
+      showToast('Sem conexão com a nuvem', 'error');
+      return;
+    }
+    
+    setIsSyncing(true);
+    showToast('Sincronizando com nuvem...', 'info');
+    
+    try {
+      await carregarNotas();
+      showToast('Notas sincronizadas com sucesso!', 'success');
+    } catch (error) {
+      showToast('Erro ao sincronizar', 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   useEffect(() => {
-    const carregarNotas = () => {
-      const notasSalvas = localStorage.getItem('banco_notas_hortifruti');
-      if (notasSalvas) setBancoNotas(JSON.parse(notasSalvas));
-    };
     carregarNotas();
     setIsLoaded(true);
-  }, []);
+  }, [supabaseStatus]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     setToast({ message, type });
   };
 
-  const excluirNotaBanco = (id: string) => {
-    if (confirm('Excluir esta nota permanentemente?')) {
+  const excluirNotaBanco = async (id: string) => {
+    if (!confirm('Excluir esta nota permanentemente?')) return;
+    
+    try {
+      if (supabaseStatus === 'connected') {
+        await deletarNotaFiscal(id);
+      }
+      
       const novoBanco = bancoNotas.filter(nota => nota.id !== id);
       setBancoNotas(novoBanco);
       localStorage.setItem('banco_notas_hortifruti', JSON.stringify(novoBanco));
       showToast('Nota excluída', 'info');
+    } catch (error) {
+      console.error('Erro ao excluir nota:', error);
+      showToast('Erro ao excluir nota', 'error');
     }
   };
 
@@ -444,16 +468,25 @@ export default function NotasFinalizadasPage() {
     router.push('/dashboard/cadastro');
   };
 
+  // 🔥 FUNÇÃO DE IMPRESSÃO - Abre em nova aba
+  const imprimirNota = (nota: NotaFiscal, modo: 'conferencia' | 'divergencia') => {
+    window.open(`/print/${nota.id}?modo=${modo}`, '_blank');
+  };
+
   const filtrarNotas = () => {
     if (!searchTerm) return bancoNotas;
     return bancoNotas.filter(nota =>
-      nota.empresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      nota.empenho.toLowerCase().includes(searchTerm.toLowerCase())
+      nota.empresa?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      nota.empenho?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      nota.numeroNota?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
 
   const notasFiltradas = filtrarNotas();
-  const totalGeral = notasFiltradas.reduce((acc, nota) => acc + nota.totalGeral, 0);
+  const totalGeral = notasFiltradas.reduce((acc, nota) => acc + (nota.totalGeral || 0), 0);
+  const notasComDivergencia = notasFiltradas.filter(n => n.statusValidacao === 'divergente').length;
+  const empenhosAgrupados = agruparPorEmpenho(notasFiltradas);
+  const totalEmpenhos = empenhosAgrupados.length;
 
   if (!isLoaded) {
     return (
@@ -465,7 +498,7 @@ export default function NotasFinalizadasPage() {
 
   return (
     <div className="space-y-4">
-      {/* HEADER COM ÍCONES MODERNOS */}
+      {/* HEADER */}
       <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-200">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white shadow-md">
@@ -476,20 +509,65 @@ export default function NotasFinalizadasPage() {
             <p className="text-xs text-slate-500">Histórico de conferências</p>
           </div>
         </div>
-        <Link
-          href="/dashboard/cadastro"
-          className="bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-[1px] flex items-center gap-2"
-        >
-          <Plus size={16} />
-          Nova
-        </Link>
+        <div className="flex items-center gap-2">
+          {supabaseStatus === 'connected' ? (
+            <div className="hidden md:flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded-full">
+              <Cloud size={12} className="text-emerald-600" />
+              <span className="text-[10px] text-emerald-700 font-medium">Cloud</span>
+            </div>
+          ) : supabaseStatus === 'disconnected' ? (
+            <div className="hidden md:flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-full">
+              <CloudOff size={12} className="text-amber-600" />
+              <span className="text-[10px] text-amber-700 font-medium">Offline</span>
+            </div>
+          ) : null}
+          
+          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
+                viewMode === 'list' 
+                  ? 'bg-white text-slate-800 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <List size={12} />
+              Lista
+            </button>
+            <button
+              onClick={() => setViewMode('grouped')}
+              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
+                viewMode === 'grouped' 
+                  ? 'bg-white text-slate-800 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Layers size={12} />
+              Por Empenho
+            </button>
+          </div>
+          
+          <button
+            onClick={forcarSincronizacao}
+            disabled={isSyncing || supabaseStatus !== 'connected'}
+            className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+          </button>
+          
+          <Link
+            href="/dashboard/cadastro"
+            className="bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-[1px] flex items-center gap-2"
+          >
+            <Plus size={16} />
+            Nova
+          </Link>
+        </div>
       </div>
 
-      {/* STATS CARDS COM IDENTIDADE VISUAL */}
+      {/* STATS CARDS */}
       {bancoNotas.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
-          
-          {/* NOTAS - AZUL */}
+        <div className="grid grid-cols-4 gap-3">
           <div className="group bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-3 hover:shadow-md transition-all duration-200 hover:-translate-y-[1px]">
             <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-all duration-200">
               <FileText size={18} />
@@ -500,7 +578,16 @@ export default function NotasFinalizadasPage() {
             </div>
           </div>
 
-          {/* TOTAL - VERDE (dinheiro) */}
+          <div className="group bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-3 hover:shadow-md transition-all duration-200 hover:-translate-y-[1px]">
+            <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-all duration-200">
+              <Layers size={18} />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Empenhos</p>
+              <p className="text-lg font-bold text-slate-800">{totalEmpenhos}</p>
+            </div>
+          </div>
+
           <div className="group bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-3 hover:shadow-md transition-all duration-200 hover:-translate-y-[1px]">
             <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-all duration-200">
               <Wallet size={18} />
@@ -511,18 +598,13 @@ export default function NotasFinalizadasPage() {
             </div>
           </div>
 
-          {/* MÉDIA - ROXO (análise) */}
           <div className="group bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-3 hover:shadow-md transition-all duration-200 hover:-translate-y-[1px]">
-            <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-all duration-200">
-              <BarChart3 size={18} />
+            <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-all duration-200">
+              <AlertTriangle size={18} />
             </div>
             <div>
-              <p className="text-xs text-slate-500">Média</p>
-              <p className="text-lg font-bold text-slate-700">
-                {bancoNotas.length 
-                  ? formatarMoeda(totalGeral / bancoNotas.length) 
-                  : formatarMoeda(0)}
-              </p>
+              <p className="text-xs text-slate-500">Divergências</p>
+              <p className="text-lg font-bold text-amber-600">{notasComDivergencia}</p>
             </div>
           </div>
         </div>
@@ -530,23 +612,47 @@ export default function NotasFinalizadasPage() {
 
       {/* PESQUISA */}
       {bancoNotas.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-lg p-3">
+        <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-3">
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por empresa ou empenho..."
+            placeholder="Buscar por empresa, empenho ou número da NF..."
             className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200"
           />
+          
+          {viewMode === 'grouped' && empenhosAgrupados.length > 0 && (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-500">
+                {empenhosAgrupados.length} empenhos encontrados
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={expandirTodos}
+                  className="text-[10px] text-emerald-600 hover:text-emerald-700 font-medium"
+                >
+                  Expandir todos
+                </button>
+                <span className="text-slate-300">•</span>
+                <button
+                  onClick={recolherTodos}
+                  className="text-[10px] text-slate-500 hover:text-slate-700 font-medium"
+                >
+                  Recolher todos
+                </button>
+              </div>
+            </div>
+          )}
+          
           {searchTerm && notasFiltradas.length !== bancoNotas.length && (
-            <p className="text-xs text-slate-500 mt-2 animate-in fade-in duration-200">
+            <p className="text-xs text-slate-500 animate-in fade-in duration-200">
               {notasFiltradas.length} de {bancoNotas.length} notas
             </p>
           )}
         </div>
       )}
 
-      {/* LISTA DE NOTAS */}
+      {/* LISTAGEM */}
       {bancoNotas.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-xl p-8 text-center">
           <div className="text-4xl mb-2 opacity-50">📭</div>
@@ -559,21 +665,37 @@ export default function NotasFinalizadasPage() {
         <div className="bg-white border border-slate-200 rounded-xl p-8 text-center animate-in fade-in duration-200">
           <p className="text-slate-500 text-sm">Nenhuma nota encontrada</p>
         </div>
-      ) : (
+      ) : viewMode === 'list' ? (
         <div className="space-y-2">
-          {notasFiltradas.map(nota => (
+          {notasFiltradas.map((nota) => (
             <NotaCard
               key={nota.id}
               nota={nota}
-              onView={() => setNotaParaVisualizar(nota)}
+              onView={() => imprimirNota(nota, 'conferencia')}
               onDelete={() => excluirNotaBanco(nota.id)}
               onEdit={editarNota}
+              onDivergencia={() => imprimirNota(nota, 'divergencia')}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {empenhosAgrupados.map((empenho) => (
+            <EmpenhoCard
+              key={empenho.numero}
+              empenho={empenho}
+              expanded={expandedEmpenhos.has(empenho.numero)}
+              onToggle={() => toggleEmpenho(empenho.numero)}
+              onViewNota={(nota) => imprimirNota(nota, 'conferencia')}
+              onEditNota={editarNota}
+              onDeleteNota={excluirNotaBanco}
+              onDivergenciaNota={(nota) => imprimirNota(nota, 'divergencia')}
             />
           ))}
         </div>
       )}
 
-      <PDFModal nota={notaParaVisualizar} onClose={() => setNotaParaVisualizar(null)} />
+      {/* TOAST */}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
