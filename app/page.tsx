@@ -30,13 +30,17 @@ export default function LandingPage() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+  const [imgError, setImgError] = useState(false);
 
   const showToast = (message: string, type: string) => setToast({ message, type });
 
   useEffect(() => {
     const authStatus = localStorage.getItem('auth_hortifruti');
     if (authStatus === 'true') {
-      router.push('/dashboard/cadastro');
+      // Usando setTimeout para evitar problemas de hidratação
+      setTimeout(() => {
+        router.push('/dashboard/cadastro');
+      }, 0);
     } else {
       setIsLoaded(true);
     }
@@ -72,34 +76,18 @@ export default function LandingPage() {
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden font-sans selection:bg-emerald-500 selection:text-white">
       
-      {/* ===== CSS INJETADO PARA AS NOVAS ANIMAÇÕES ===== */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-8px) rotate(2deg); }
-        }
-        @keyframes shine {
-          100% { left: 125%; }
-        }
-        @keyframes spin-slow {
-          100% { transform: rotate(360deg); }
-        }
-        @keyframes fade-in {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-float { animation: float 4s ease-in-out infinite; }
-        .animate-spin-slow { animation: spin-slow 12s linear infinite; }
-        .animate-fade-in { animation: fade-in 0.3s ease-out; }
-      `}} />
-
       {/* ===== BACKGROUND: IMAGEM REAL PREMIUM + OVERLAY ===== */}
       <div className="absolute inset-0 z-0 bg-slate-900">
-        <img 
-          src="https://images.unsplash.com/photo-1610832958506-aa56368176cf?q=80&w=2070&auto=format&fit=crop" 
-          alt="Hortifrúti Background" 
-          className="w-full h-full object-cover opacity-50 scale-105 animate-[pulse_20s_ease-in-out_infinite_alternate]"
-        />
+        {!imgError ? (
+          <img 
+            src="https://images.unsplash.com/photo-1610832958506-aa56368176cf?q=80&w=2070&auto=format&fit=crop" 
+            alt="Hortifrúti Background" 
+            className="w-full h-full object-cover opacity-50 scale-105 animate-[pulse_20s_ease-in-out_infinite_alternate]"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-emerald-900 to-slate-900 opacity-50"></div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/90 via-slate-900/80 to-slate-900/95 backdrop-blur-[3px]"></div>
       </div>
 
@@ -144,10 +132,6 @@ export default function LandingPage() {
                 src="/favicon.ico" 
                 alt="Logo do Sistema" 
                 className="w-14 h-14 object-contain filter drop-shadow-xl transition-transform duration-500 group-hover:scale-110"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.parentElement!.innerHTML = '<span class="text-5xl">📦</span>';
-                }}
               />
             </div>
           </div>
@@ -194,7 +178,7 @@ export default function LandingPage() {
               className="group relative w-full overflow-hidden flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 bg-[length:200%_auto] hover:bg-[position:right_center] text-white font-black py-4 rounded-2xl transition-all duration-500 shadow-[0_10px_20px_rgba(16,185,129,0.4)] hover:shadow-[0_15px_30px_rgba(16,185,129,0.5)] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none border border-emerald-400/50"
             >
               {/* Efeito de Reflexo de Luz passando pelo botão (Shine) */}
-              <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[30deg] group-hover:animate-[shine_1.5s_ease-in-out_infinite]"></div>
+              <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[30deg] group-hover:animate-shine"></div>
               
               {isLoading ? (
                 <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
