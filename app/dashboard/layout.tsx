@@ -50,36 +50,69 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  const [authorized, setAuthorized] = useState(false);
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // ================= MOUNT SAFEGUARD =================
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // ================= AUTH =================
   useEffect(() => {
-    const auth = localStorage.getItem("auth_hortifruti");
+    // ✅ Só executa no client
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const auth = localStorage.getItem("auth_hortifruti");
 
-    if (auth !== "true") {
+      if (auth !== "true") {
+        router.replace("/");
+        return;
+      }
+
+      setAuthorized(true);
+
+      const saved = localStorage.getItem("sidebar_collapsed");
+      if (saved === "true") setCollapsed(true);
+    } catch (error) {
+      console.warn("Erro ao acessar localStorage:", error);
       router.replace("/");
-      return;
     }
-
-    setAuthorized(true);
-
-    const saved = localStorage.getItem("sidebar_collapsed");
-    if (saved === "true") setCollapsed(true);
   }, [router]);
 
   const toggleSidebar = () => {
     const next = !collapsed;
     setCollapsed(next);
-    localStorage.setItem("sidebar_collapsed", String(next));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("sidebar_collapsed", String(next));
+    }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("auth_hortifruti");
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem("auth_hortifruti");
+    }
     router.replace("/");
   };
 
-  if (!authorized) return null;
+  // ✅ Blindagem contra hydration error - mostra loading enquanto verifica auth
+  if (!isMounted || authorized === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-500 text-sm">Verificando acesso...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Se não autorizado, não renderiza nada (já vai redirecionar)
+  if (!authorized) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -89,6 +122,7 @@ export default function DashboardLayout({
         animate={collapsed ? "collapsed" : "expanded"}
         transition={{ duration: 0.2 }}
         className="bg-white border-r flex flex-col justify-between shadow-sm"
+        style={{ overflow: 'hidden' }}
       >
         {/* TOPO */}
         <div>
@@ -99,7 +133,11 @@ export default function DashboardLayout({
               </div>
             )}
 
-            <button onClick={toggleSidebar}>
+            <button 
+              onClick={toggleSidebar}
+              className="p-1 rounded hover:bg-slate-100 transition-colors"
+              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            >
               {collapsed ? (
                 <ChevronRight size={18} />
               ) : (
@@ -117,7 +155,7 @@ export default function DashboardLayout({
               return (
                 <Link key={item.href} href={item.href}>
                   <div
-                    className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition
+                    className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition cursor-pointer
                       ${
                         active
                           ? "bg-emerald-100 text-emerald-700"
@@ -147,7 +185,7 @@ export default function DashboardLayout({
       </motion.aside>
 
       {/* MAIN */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* HEADER */}
         <header className="border-b bg-white px-6 py-3 flex justify-between items-center">
           <div>
@@ -163,7 +201,7 @@ export default function DashboardLayout({
 
           <div className="flex items-center gap-3 text-xs text-slate-500">
             <Calendar size={14} />
-            {new Date().toLocaleDateString("pt-BR")}
+            {typeof window !== 'undefined' && new Date().toLocaleDateString("pt-BR")}
           </div>
         </header>
 
@@ -176,7 +214,7 @@ export default function DashboardLayout({
             animate="animate"
             exit="exit"
             transition={{ duration: 0.2 }}
-            className="flex-1 p-5"
+            className="flex-1 p-5 overflow-auto"
           >
             {children}
           </motion.main>

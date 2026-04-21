@@ -219,7 +219,7 @@ const PRODUTOS_CONTRATO = [
   { id: 285, codigo: 0, categoria: 'ASPARGO', nome: 'ASPARGO', desconto: 10.00 },
   { id: 123, codigo: 0, categoria: 'CEBOLINHA', nome: 'CEBOLINHA', desconto: 3.00 },
   { id: 6, codigo: 272822, categoria: 'COENTRO', nome: 'MAÇO', desconto: 2.70 },
-  { id: 286, codigo: 0, categoria: 'COUVE BROCOLO', BLANK: 'AMERICANA DUZIA', desconto: 10.00 }, // Corrigido erro de digitação original 
+  { id: 286, codigo: 0, categoria: 'COUVE BROCOLO', nome: 'AMERICANA DUZIA', desconto: 10.00 },
   { id: 287, codigo: 0, categoria: 'COUVE CHINESA', nome: 'GRANDE', desconto: 10.00 },
   { id: 7, codigo: 379, categoria: 'COUVE FLOR', nome: 'MÉDIA', desconto: 2.70 },
   { id: 122, codigo: 0, categoria: 'COUVE MANTEIGA', nome: 'MAÇO', desconto: 3.00 },
@@ -596,7 +596,10 @@ const UploadPDFButton = ({ onDataExtracted }: { onDataExtracted: (produtos: Prec
 
 // ==================== TOAST ====================
 const Toast = ({ message, type, onClose }: { message: string; type: string; onClose: () => void }) => {
-  useEffect(() => { const timer = setTimeout(onClose, 3000); return () => clearTimeout(timer); }, [onClose]);
+  useEffect(() => { 
+    const timer = setTimeout(onClose, 3000); 
+    return () => clearTimeout(timer); 
+  }, [onClose]);
   
   const config = {
     success: { bg: 'bg-emerald-500', icon: <CheckCircle size={18} /> },
