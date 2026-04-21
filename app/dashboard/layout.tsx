@@ -53,10 +53,13 @@ export default function DashboardLayout({
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [currentDate, setCurrentDate] = useState("");
 
   // ================= MOUNT SAFEGUARD =================
   useEffect(() => {
     setIsMounted(true);
+    // ✅ Data segura - só no client
+    setCurrentDate(new Date().toLocaleDateString("pt-BR"));
   }, []);
 
   // ================= AUTH =================
@@ -68,6 +71,8 @@ export default function DashboardLayout({
       const auth = localStorage.getItem("auth_hortifruti");
 
       if (auth !== "true") {
+        // ✅ Estado correto definido antes do redirect
+        setAuthorized(false);
         router.replace("/");
         return;
       }
@@ -78,6 +83,7 @@ export default function DashboardLayout({
       if (saved === "true") setCollapsed(true);
     } catch (error) {
       console.warn("Erro ao acessar localStorage:", error);
+      setAuthorized(false);
       router.replace("/");
     }
   }, [router]);
@@ -109,9 +115,18 @@ export default function DashboardLayout({
     );
   }
 
-  // ✅ Se não autorizado, não renderiza nada (já vai redirecionar)
+  // ✅ CORREÇÃO CRÍTICA: NUNCA retornar null no layout do App Router
+  // ✅ Mostra mensagem de redirecionamento em vez de quebrar a árvore React
   if (!authorized) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-amber-200 border-t-amber-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 text-sm font-medium">Redirecionando para login...</p>
+          <p className="text-slate-400 text-xs mt-2">Aguarde um momento</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -121,27 +136,32 @@ export default function DashboardLayout({
         variants={sidebarVariants}
         animate={collapsed ? "collapsed" : "expanded"}
         transition={{ duration: 0.2 }}
-        className="bg-white border-r flex flex-col justify-between shadow-sm"
+        className="bg-white border-r flex flex-col justify-between shadow-sm relative z-10"
         style={{ overflow: 'hidden' }}
       >
         {/* TOPO */}
         <div>
           <div className="flex items-center justify-between p-4 border-b">
             {!collapsed && (
-              <div className="font-bold text-sm text-slate-800">
-                Conferência
-              </div>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="font-bold text-sm text-emerald-600"
+              >
+                CAPS 3
+              </motion.div>
             )}
 
             <button 
               onClick={toggleSidebar}
-              className="p-1 rounded hover:bg-slate-100 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
               aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
             >
               {collapsed ? (
-                <ChevronRight size={18} />
+                <ChevronRight size={18} className="text-slate-500" />
               ) : (
-                <ChevronLeft size={18} />
+                <ChevronLeft size={18} className="text-slate-500" />
               )}
             </button>
           </div>
@@ -154,18 +174,28 @@ export default function DashboardLayout({
 
               return (
                 <Link key={item.href} href={item.href}>
-                  <div
-                    className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition cursor-pointer
+                  <motion.div
+                    whileHover={{ x: collapsed ? 0 : 4 }}
+                    transition={{ duration: 0.2 }}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition cursor-pointer
                       ${
                         active
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "text-slate-600 hover:bg-slate-100"
+                          ? "bg-emerald-50 text-emerald-700 shadow-sm"
+                          : "text-slate-600 hover:bg-slate-50"
                       }`}
                   >
-                    <Icon size={18} />
+                    <Icon size={18} className={active ? "text-emerald-600" : "text-slate-400"} />
 
-                    {!collapsed && <span>{item.label}</span>}
-                  </div>
+                    {!collapsed && (
+                      <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+                  </motion.div>
                 </Link>
               );
             })}
@@ -174,34 +204,44 @@ export default function DashboardLayout({
 
         {/* LOGOUT */}
         <div className="p-2 border-t">
-          <button
+          <motion.button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-600 hover:bg-red-50 hover:text-red-600 transition"
+            whileHover={{ x: collapsed ? 0 : 4 }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-red-50 hover:text-red-600 transition group"
           >
-            <LogOut size={18} />
-            {!collapsed && <span>Sair</span>}
-          </button>
+            <LogOut size={18} className="group-hover:text-red-500" />
+            {!collapsed && (
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                Sair
+              </motion.span>
+            )}
+          </motion.button>
         </div>
       </motion.aside>
 
       {/* MAIN */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* HEADER */}
-        <header className="border-b bg-white px-6 py-3 flex justify-between items-center">
+        <header className="border-b bg-white/80 backdrop-blur-sm px-6 py-4 flex justify-between items-center sticky top-0 z-20">
           <div>
             <h1 className="text-sm font-bold text-slate-800">
               {NAV_ITEMS.find((i) => i.href === pathname)?.label ||
                 "Dashboard"}
             </h1>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 mt-0.5">
               {NAV_ITEMS.find((i) => i.href === pathname)?.description ||
-                "Sistema"}
+                "Sistema de gestão"}
             </p>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-slate-500">
-            <Calendar size={14} />
-            {typeof window !== 'undefined' && new Date().toLocaleDateString("pt-BR")}
+          {/* ✅ CORREÇÃO: Data vinda do state, não new Date() direto no render */}
+          <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">
+            <Calendar size={14} className="text-emerald-500" />
+            <span className="font-medium">{currentDate}</span>
           </div>
         </header>
 
@@ -214,7 +254,7 @@ export default function DashboardLayout({
             animate="animate"
             exit="exit"
             transition={{ duration: 0.2 }}
-            className="flex-1 p-5 overflow-auto"
+            className="flex-1 p-6 overflow-auto"
           >
             {children}
           </motion.main>
