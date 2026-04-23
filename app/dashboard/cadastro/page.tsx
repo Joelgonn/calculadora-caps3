@@ -29,123 +29,69 @@ import { supabase } from '@/lib/supabase/client';
 import { salvarPrecosCeasa, buscarPrecosCeasa, salvarNotaFiscal } from '@/lib/supabase/db';
 
 // ==================== BANCO DE DADOS CEASA COMPLETO ====================
-// Produtos com desconto = conforme edital
-// Produtos sem desconto = null (não constam no contrato)
-
 const PRODUTOS_CONTRATO = [
-  // ==================== ABACATES ====================
   { id: 101, codigo: 0, categoria: 'ABACATE', nome: 'AVOCADO', desconto: null },
   { id: 102, codigo: 0, categoria: 'ABACATE', nome: 'FORTUNA', desconto: null },
   { id: 200, codigo: 0, categoria: 'ABACATE', nome: 'GEADA', desconto: null },
   { id: 103, codigo: 0, categoria: 'ABACATE', nome: 'MANTEIGA', desconto: null },
   { id: 104, codigo: 0, categoria: 'ABACATE', nome: 'MARGARIDA', desconto: null },
-
-  // ==================== ABACAXI ====================
   { id: 25, codigo: 1107, categoria: 'ABACAXI', nome: 'HAVAI MEDIO', desconto: 14.80 },
   { id: 26, codigo: 251658, categoria: 'ABACAXI', nome: 'PÉROLA GRAUDO', desconto: 18.10 },
   { id: 201, codigo: 0, categoria: 'ABACAXI', nome: 'PÉROLA MÉDIO', desconto: 18.10 },
-
-  // ==================== AMEIXA ====================
   { id: 202, codigo: 0, categoria: 'AMEIXA', nome: 'VERMELHA IMPORTADA', desconto: null },
   { id: 203, codigo: 0, categoria: 'AMEIXA', nome: 'VERMELHA NACIONAL', desconto: null },
-
-  // ==================== BANANA ====================
   { id: 118, codigo: 0, categoria: 'BANANA', nome: 'CATURRA PRIMEIRA', desconto: 2.20 },
   { id: 1, codigo: 364, categoria: 'BANANA', nome: 'MAÇÃ PRIMEIRA', desconto: 2.20 },
   { id: 119, codigo: 0, categoria: 'BANANA', nome: 'PRATA', desconto: 2.20 },
   { id: 120, codigo: 0, categoria: 'BANANA', nome: 'TERRA', desconto: 2.20 },
-
-  // ==================== CAQUI ====================
   { id: 204, codigo: 0, categoria: 'CAQUI', nome: 'IMPORTADO', desconto: null },
   { id: 205, codigo: 0, categoria: 'CAQUI', nome: 'CHOCOLATE', desconto: null },
   { id: 206, codigo: 0, categoria: 'CAQUI', nome: 'FUYU', desconto: null },
-
-  // ==================== COCO ====================
   { id: 207, codigo: 0, categoria: 'COCO', nome: 'SECO', desconto: null },
   { id: 208, codigo: 0, categoria: 'COCO', nome: 'VERDE', desconto: null },
-
-  // ==================== KIWI ====================
   { id: 209, codigo: 0, categoria: 'KIWI', nome: 'IMPORTADO', desconto: null },
-
-  // ==================== LARANJA ====================
   { id: 124, codigo: 0, categoria: 'LARANJA', nome: 'BAHIA IMPORTADA', desconto: null },
   { id: 210, codigo: 0, categoria: 'LARANJA', nome: 'BAHIA MÉDIA', desconto: null },
   { id: 125, codigo: 0, categoria: 'LARANJA', nome: 'LIMA MÉDIA', desconto: null },
   { id: 126, codigo: 0, categoria: 'LARANJA', nome: 'PERA MEDIA', desconto: null },
-
-  // ==================== LIMA PERSIA ====================
   { id: 211, codigo: 0, categoria: 'LIMA PERSIA', nome: 'LIMA PERSIA', desconto: null },
-
-  // ==================== LIMÃO ====================
   { id: 128, codigo: 0, categoria: 'LIMAO', nome: 'ROSA', desconto: null },
   { id: 129, codigo: 0, categoria: 'LIMAO', nome: 'SICILIANO IMPORTADO', desconto: null },
   { id: 127, codigo: 0, categoria: 'LIMAO', nome: 'TAHITI GRAUDO', desconto: null },
   { id: 212, codigo: 0, categoria: 'LIMAO', nome: 'TAHITI MEDIO', desconto: null },
-
-  // ==================== MAÇÃ ====================
   { id: 132, codigo: 0, categoria: 'MAÇÃ', nome: 'EVA PRIMEIRA', desconto: null },
   { id: 131, codigo: 0, categoria: 'MAÇÃ', nome: 'FUJI CAT 1 TP 80 A 100', desconto: null },
   { id: 130, codigo: 0, categoria: 'MAÇÃ', nome: 'GALA CAT 1 TP 80 A 100', desconto: null },
-
-  // ==================== MAÇÃ IMPORTADA ====================
   { id: 133, codigo: 0, categoria: 'MAÇÃ IMPORTADA', nome: 'GRANNY SMITH TP 80 A 100', desconto: null },
   { id: 213, codigo: 0, categoria: 'MAÇÃ IMPORTADA', nome: 'RED DELICIOUS TP80 A 100', desconto: null },
-
-  // ==================== MAMÃO ====================
   { id: 134, codigo: 0, categoria: 'MAMÃO', nome: 'FORMOSA MADURO', desconto: 10.10 },
   { id: 33, codigo: 203412, categoria: 'MAMÃO', nome: 'PAPAYA/HAVAI 24', desconto: 10.10 },
-
-  // ==================== MANGA ====================
   { id: 135, codigo: 0, categoria: 'MANGA', nome: 'PALMER', desconto: 16.65 },
   { id: 12, codigo: 90548, categoria: 'MANGA', nome: 'TOMMY ATKINS', desconto: 16.65 },
-
-  // ==================== MARACUJÁ ====================
   { id: 13, codigo: 6602, categoria: 'MARACUJÁ', nome: 'AZEDO', desconto: 10.10 },
   { id: 136, codigo: 0, categoria: 'MARACUJÁ', nome: 'DOCE MEDIO', desconto: 10.10 },
-
-  // ==================== MELANCIA ====================
   { id: 137, codigo: 0, categoria: 'MELANCIA', nome: 'BABY', desconto: 19.10 },
   { id: 14, codigo: 1046, categoria: 'MELANCIA', nome: 'REDONDA', desconto: 19.10 },
-
-  // ==================== MELÃO ====================
   { id: 138, codigo: 0, categoria: 'MELÃO', nome: 'AMARELO REI (5-7 UND.)', desconto: null },
   { id: 214, codigo: 0, categoria: 'MELÃO', nome: 'AMARELO COMUM 08 A 10 UN', desconto: null },
   { id: 215, codigo: 0, categoria: 'MELÃO', nome: 'ORANGE 5 A 6 UN', desconto: null },
   { id: 139, codigo: 0, categoria: 'MELÃO', nome: 'PELE DE SAPO 5-6-8-10 UN', desconto: null },
-
-  // ==================== MORANGO ====================
   { id: 34, codigo: 93945, categoria: 'MORANGO', nome: 'TIPO 1', desconto: 10.20 },
-
-  // ==================== NECTARINA ====================
   { id: 216, codigo: 0, categoria: 'NECTARINA', nome: 'IMPORTADA', desconto: null },
   { id: 217, codigo: 0, categoria: 'NECTARINA', nome: 'NACIONAL', desconto: null },
-
-  // ==================== PERA IMPORTADA ====================
   { id: 218, codigo: 0, categoria: 'PERA IMPORTADA', nome: 'D\'ANJOU TP 80 A 100', desconto: 19.90 },
   { id: 219, codigo: 0, categoria: 'PERA IMPORTADA', nome: 'PACKHAM\'S TP 80 A 100', desconto: 19.90 },
   { id: 220, codigo: 0, categoria: 'PERA IMPORTADA', nome: 'PORTUGUESA', desconto: 19.90 },
   { id: 19, codigo: 268125, categoria: 'PERA IMPORTADA', nome: 'WILLIAMS TP 80 A 100', desconto: 19.90 },
-
-  // ==================== PÊRA NACIONAL ====================
   { id: 221, codigo: 0, categoria: 'PÊRA NACIONAL', nome: 'YARI', desconto: null },
-
-  // ==================== PÊSSEGO ====================
   { id: 222, codigo: 0, categoria: 'PÊSSEGO', nome: 'IMPORTADO', desconto: null },
   { id: 223, codigo: 0, categoria: 'PÊSSEGO', nome: 'NACIONAL', desconto: null },
-
-  // ==================== PITAIA ====================
   { id: 224, codigo: 0, categoria: 'PITAIA', nome: 'C/12UN', desconto: null },
-
-  // ==================== TAMARA FRESCA ====================
   { id: 225, codigo: 0, categoria: 'TAMARA FRESCA', nome: 'FRESCA', desconto: null },
-
-  // ==================== TANGERINA ====================
   { id: 226, codigo: 0, categoria: 'TANGERINA', nome: 'CRAVO', desconto: 10.10 },
   { id: 227, codigo: 0, categoria: 'TANGERINA', nome: 'MONTEN/BERGAM GRANDE', desconto: 10.10 },
   { id: 15, codigo: 221173, categoria: 'TANGERINA', nome: 'MURKOTE MEDIA', desconto: 10.10 },
   { id: 228, codigo: 0, categoria: 'TANGERINA', nome: 'PONKAN MEDIA', desconto: 10.10 },
-
-  // ==================== UVA ====================
   { id: 229, codigo: 0, categoria: 'UVA', nome: 'BENITAKE NACIONAL', desconto: null },
   { id: 230, codigo: 0, categoria: 'UVA', nome: 'BRASIL/CENTENIA NACIONAL', desconto: null },
   { id: 231, codigo: 0, categoria: 'UVA', nome: 'CRINSON IMPORTADA', desconto: null },
@@ -157,8 +103,6 @@ const PRODUTOS_CONTRATO = [
   { id: 236, codigo: 0, categoria: 'UVA', nome: 'THOMPSON IMPORTADA', desconto: null },
   { id: 237, codigo: 0, categoria: 'UVA', nome: 'THOMPSON NACIONAL', desconto: null },
   { id: 238, codigo: 0, categoria: 'UVA', nome: 'VITÓRIA NACIONAL', desconto: null },
-
-  // ==================== DEMAIS FRUTAS ====================
   { id: 239, codigo: 0, categoria: 'AMORA', nome: 'AMORA', desconto: null },
   { id: 240, codigo: 0, categoria: 'ATEMOIA', nome: '15 UNID', desconto: null },
   { id: 241, codigo: 0, categoria: 'CAJU', nome: 'CAJU', desconto: null },
@@ -178,186 +122,93 @@ const PRODUTOS_CONTRATO = [
   { id: 254, codigo: 0, categoria: 'PHYSALIS', nome: 'VELUVA IMPORTADA', desconto: null },
   { id: 255, codigo: 0, categoria: 'PINHA (FRUTA DO CONDE)', nome: 'PINHA', desconto: null },
   { id: 256, codigo: 0, categoria: 'ROMA', nome: 'ROMA', desconto: null },
-
-  // ==================== HORTALIÇAS FRUTOS ====================
   { id: 2, codigo: 357, categoria: 'ABOBORA', nome: 'HOKAIDO/KABOTIA', desconto: 8.80 },
   { id: 4, codigo: 359, categoria: 'ABOBORA', nome: 'MENINA/PAULISTA', desconto: 10.50 },
   { id: 3, codigo: 90539, categoria: 'ABOBORA', nome: 'MORANGA', desconto: 10.30 },
   { id: 105, codigo: 0, categoria: 'ABOBORA', nome: 'SECA/PESCOÇO', desconto: null },
-
-  // ==================== ABOBRINHA ====================
   { id: 106, codigo: 0, categoria: 'ABOBRINHA', nome: 'BRANCA EXTRA A', desconto: 10.30 },
   { id: 257, codigo: 0, categoria: 'ABOBRINHA', nome: 'BRANCA EXTRA AA', desconto: 10.30 },
   { id: 5, codigo: 111964, categoria: 'ABOBRINHA', nome: 'VERDE EXTRA A', desconto: 10.30 },
   { id: 107, codigo: 0, categoria: 'ABOBRINHA', nome: 'VERDE EXTRA AA', desconto: 10.30 },
-
-  // ==================== BERINJELA ====================
   { id: 258, codigo: 0, categoria: 'BERINJELA', nome: 'EXTRA A', desconto: 3.20 },
   { id: 30, codigo: 265691, categoria: 'BERINJELA', nome: 'EXTRA AA', desconto: 3.20 },
-
-  // ==================== CAXI ====================
   { id: 259, codigo: 0, categoria: 'CAXI', nome: 'CAXI', desconto: null },
-
-  // ==================== CHUCHU ====================
   { id: 260, codigo: 0, categoria: 'CHUCHU', nome: 'EXTRA A', desconto: null },
   { id: 261, codigo: 0, categoria: 'CHUCHU', nome: 'EXTRA AA', desconto: null },
-
-  // ==================== ERVILHA ====================
   { id: 262, codigo: 0, categoria: 'ERVILHA', nome: 'TORTA (PR)', desconto: null },
-
-  // ==================== JILÓ ====================
   { id: 11, codigo: 266834, categoria: 'JILÓ', nome: 'PRIMEIRA', desconto: 7.10 },
-
-  // ==================== MAXIXE ====================
   { id: 263, codigo: 0, categoria: 'MAXIXE', nome: 'PRIMEIRA', desconto: null },
-
-  // ==================== MILHO ====================
   { id: 16, codigo: 400, categoria: 'MILHO', nome: 'VERDE BANDEJA C/4UN', desconto: 10.10 },
   { id: 264, codigo: 0, categoria: 'MILHO', nome: 'VERDE SC C/50 ESPIGAS', desconto: 10.10 },
-
-  // ==================== PEPINO ====================
   { id: 17, codigo: 203414, categoria: 'PEPINO', nome: 'AODAI/SALADA EXTRA A', desconto: 10.10 },
   { id: 265, codigo: 0, categoria: 'PEPINO', nome: 'AODAI/SALADA EXTRA AA', desconto: 10.10 },
   { id: 266, codigo: 0, categoria: 'PEPINO', nome: 'JAPONÊS EXTRA A', desconto: 10.10 },
   { id: 18, codigo: 1637, categoria: 'PEPINO', nome: 'JAPONÊS EXTRA AA', desconto: 10.10 },
-
-  // ==================== PIMENTA ====================
   { id: 267, codigo: 0, categoria: 'PIMENTA', nome: 'AMERICANA', desconto: null },
   { id: 268, codigo: 0, categoria: 'PIMENTA', nome: 'CAMBUCI', desconto: null },
   { id: 269, codigo: 0, categoria: 'PIMENTA', nome: 'DEDO DE MOÇA/ARDIDA', desconto: null },
-
-  // ==================== PIMENTÃO ====================
   { id: 20, codigo: 111965, categoria: 'PIMENTAO', nome: 'AMARELO EXTRA AA', desconto: 10.10 },
   { id: 270, codigo: 0, categoria: 'PIMENTAO', nome: 'VERDE EXTRA A', desconto: 9.10 },
   { id: 21, codigo: 3693, categoria: 'PIMENTAO', nome: 'VERDE EXTRA AA', desconto: 9.10 },
   { id: 22, codigo: 111966, categoria: 'PIMENTAO', nome: 'VERMELHO EXTRA AA', desconto: 9.10 },
-
-  // ==================== QUIABO ====================
   { id: 23, codigo: 90537, categoria: 'QUIABO', nome: 'PRIMEIRA', desconto: 9.10 },
-
-  // ==================== TOMATE ====================
   { id: 140, codigo: 0, categoria: 'TOMATE', nome: 'CEREJA BANDEJA', desconto: 15.00 },
   { id: 271, codigo: 0, categoria: 'TOMATE', nome: 'CEREJA EXTRA AA', desconto: 15.00 },
   { id: 38, codigo: 416, categoria: 'TOMATE', nome: 'LONGA VIDA EXTRA AA', desconto: 15.00 },
   { id: 141, codigo: 0, categoria: 'TOMATE', nome: 'SALADETE EXTRA AA', desconto: 15.00 },
-
-  // ==================== VAGEM ====================
   { id: 272, codigo: 0, categoria: 'VAGEM', nome: 'MACARRAO EXTRA A', desconto: 6.70 },
   { id: 24, codigo: 417, categoria: 'VAGEM', nome: 'MACARRAO EXTRA AA', desconto: 6.70 },
-
-  // ==================== HORTALIÇAS TUBEROSAS ====================
   { id: 273, codigo: 0, categoria: 'AIPIM-MANDIOCA', nome: 'PRIMEIRA', desconto: null },
   { id: 274, codigo: 0, categoria: 'AIPIM-MANDIOCA', nome: 'TOLETE', desconto: null },
-
-  // ==================== ALHO ====================
   { id: 108, codigo: 0, categoria: 'ALHO NACIONAL', nome: 'ROXO TP 6 A 7', desconto: null },
   { id: 109, codigo: 0, categoria: 'ALHO IMPORTADO', nome: 'ROXO TP 6 A 7', desconto: null },
-
-  // ==================== BATATA ====================
   { id: 114, codigo: 0, categoria: 'BATATA', nome: 'CASCA ROSADA ESPECIAL', desconto: null },
   { id: 113, codigo: 0, categoria: 'BATATA', nome: 'COMUM ESPECIAL', desconto: null },
   { id: 275, codigo: 0, categoria: 'BATATA', nome: 'COMUM PRIMEIRINHA', desconto: null },
-
-  // ==================== BATATA DOCE ====================
   { id: 115, codigo: 0, categoria: 'BATATA DOCE', nome: 'BRANCA EXTRA', desconto: null },
   { id: 116, codigo: 0, categoria: 'BATATA DOCE', nome: 'ROXA EXTRA', desconto: null },
-
-  // ==================== BATATA YAKON ====================
   { id: 276, codigo: 0, categoria: 'BATATA YAKON', nome: 'YAKON', desconto: null },
-
-  // ==================== BETERRABA ====================
   { id: 277, codigo: 0, categoria: 'BETERRABA', nome: 'EXTRA A', desconto: 10.20 },
   { id: 31, codigo: 371, categoria: 'BETERRABA', nome: 'EXTRA AA', desconto: 10.20 },
-
-  // ==================== CARÁ ====================
   { id: 32, codigo: 221161, categoria: 'CARA', nome: 'EXTRA A', desconto: 6.20 },
-
-  // ==================== CEBOLA ====================
   { id: 110, codigo: 0, categoria: 'CEBOLA', nome: 'BRANCA NACIONAL', desconto: null },
   { id: 278, codigo: 0, categoria: 'CEBOLA', nome: 'PERA NACIONAL', desconto: null },
   { id: 111, codigo: 0, categoria: 'CEBOLA', nome: 'ROXA', desconto: null },
-
-  // ==================== CENOURA ====================
   { id: 279, codigo: 0, categoria: 'CENOURA', nome: 'COMUM EXTRA A', desconto: null },
   { id: 112, codigo: 0, categoria: 'CENOURA', nome: 'COMUM EXTRA AA', desconto: null },
-
-  // ==================== GENGIBRE ====================
   { id: 8, codigo: 111968, categoria: 'GENGIBRE', nome: 'PRIMEIRA', desconto: 4.10 },
-
-  // ==================== GOBO ====================
   { id: 280, codigo: 0, categoria: 'GOBO', nome: 'GOBO', desconto: null },
-
-  // ==================== INHAME ====================
   { id: 10, codigo: 271015, categoria: 'INHAME-TAIÁ', nome: 'PRIMEIRA', desconto: 10.10 },
-
-  // ==================== MANDIOQUINHA ====================
   { id: 117, codigo: 0, categoria: 'MANDIOQUINHA/BATATA SALSA', nome: 'PRIMEIRA', desconto: null },
-
-  // ==================== NABO ====================
   { id: 281, codigo: 0, categoria: 'NABO', nome: 'BRANCO', desconto: null },
-
-  // ==================== RABANETE ====================
   { id: 282, codigo: 0, categoria: 'RABANETE', nome: 'DZ DE MAÇOS', desconto: null },
-
-  // ==================== HORTALIÇAS HERBÁCEAS ====================
   { id: 27, codigo: 361, categoria: 'AGRIAO', nome: 'MAÇO', desconto: 3.30 },
-
-  // ==================== ALFACE ====================
   { id: 28, codigo: 236941, categoria: 'ALFACE', nome: 'AMERICANA MÉDIA', desconto: 3.20 },
   { id: 29, codigo: 362, categoria: 'ALFACE', nome: 'CRESPA MEDIO', desconto: 3.20 },
-
-  // ==================== ALHO PORO ====================
   { id: 283, codigo: 0, categoria: 'ALHO PORO', nome: 'MAÇO 4 UNID', desconto: null },
-
-  // ==================== ALMEIRÃO ====================
   { id: 284, codigo: 0, categoria: 'ALMEIRAO', nome: 'PÃO DE ACUCAR MAÇO', desconto: null },
-
-  // ==================== ASPARGO ====================
   { id: 285, codigo: 0, categoria: 'ASPARGO', nome: 'ASPARGO', desconto: null },
-
-  // ==================== CEBOLINHA ====================
   { id: 123, codigo: 0, categoria: 'CEBOLINHA', nome: 'CEBOLINHA', desconto: null },
-
-  // ==================== COENTRO ====================
   { id: 6, codigo: 272822, categoria: 'COENTRO', nome: 'MAÇO', desconto: 2.70 },
-
-  // ==================== COUVE ====================
   { id: 286, codigo: 0, categoria: 'COUVE BROCOLO', nome: 'AMERICANA DUZIA', desconto: null },
   { id: 287, codigo: 0, categoria: 'COUVE CHINESA', nome: 'GRANDE', desconto: null },
   { id: 7, codigo: 379, categoria: 'COUVE FLOR', nome: 'MÉDIA', desconto: 2.70 },
   { id: 122, codigo: 0, categoria: 'COUVE MANTEIGA', nome: 'MAÇO', desconto: null },
-
-  // ==================== ESCAROLA ====================
   { id: 288, codigo: 0, categoria: 'ESCAROLA/CHICORIA', nome: 'ESCAROLA/CHICORIA', desconto: null },
-
-  // ==================== ESPINAFRE ====================
   { id: 289, codigo: 0, categoria: 'ESPINAFRE', nome: 'ESPINAFRE', desconto: null },
-
-  // ==================== HORTELA ====================
   { id: 290, codigo: 0, categoria: 'HORTELA', nome: 'HORTELA', desconto: null },
-
-  // ==================== REPOLHO ====================
   { id: 36, codigo: 90933, categoria: 'REPOLHO', nome: 'ROXO GRANDE/MEDIO', desconto: 10.00 },
   { id: 35, codigo: 98800, categoria: 'REPOLHO', nome: 'VERDE MEDIO', desconto: 10.00 },
-
-  // ==================== RÚCULA ====================
   { id: 37, codigo: 413, categoria: 'RUCULA', nome: 'RUCULA', desconto: 8.60 },
-
-  // ==================== SALSA ====================
   { id: 291, codigo: 0, categoria: 'SALSAO (AIPO)', nome: 'SALSAO (AIPO)', desconto: null },
   { id: 292, codigo: 0, categoria: 'SALSINHA', nome: 'SALSINHA', desconto: null },
-
-  // ==================== GRANJEIROS ====================
   { id: 293, codigo: 0, categoria: 'OVO', nome: 'BRANCO EXTRA', desconto: null },
   { id: 294, codigo: 0, categoria: 'OVO', nome: 'BRANCO MEDIO', desconto: null },
   { id: 295, codigo: 0, categoria: 'OVO', nome: 'CODORNA', desconto: null },
   { id: 296, codigo: 0, categoria: 'OVO', nome: 'VERMELHO EXTRA', desconto: null },
-
-  // ==================== GRÃOS E CEREAIS ====================
   { id: 297, codigo: 0, categoria: 'AMENDOIM', nome: 'COM CASCA', desconto: null },
 ];
 
-// ==================== TIPOS ====================
 interface ItemNota {
   id: string;
   produtoId: number;
@@ -398,14 +249,12 @@ interface PrecoCeasa {
   valorMc: number;
 }
 
-// ==================== TOAST TYPES ====================
 interface ToastMessage {
   id: string;
   message: string;
   type: 'success' | 'error' | 'info' | 'warning';
 }
 
-// ==================== UTILITÁRIOS SEGUROS ====================
 const formatarMoeda = (valor: any) => {
   const safeValor = Number(valor);
   if (isNaN(safeValor)) return 'R$ 0,00';
@@ -454,14 +303,19 @@ const validarPreco = (valorNota: number, valorCeasa: number): { status: 'ok' | '
   const safeValorCeasa = Number(valorCeasa) || 0;
   const diferenca = safeValorNota - safeValorCeasa;
   const isOk = Math.abs(diferenca) < 0.05;
-
   return {
     status: isOk ? 'ok' : 'divergente',
     diferenca
   };
 };
 
-// ==================== SELECTOR PERSONALIZADO ====================
+const gerarIdUnico = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
+
 interface PremiumSelectProps {
   value: string;
   onChange: (value: string) => void;
@@ -620,8 +474,6 @@ const PremiumSelect = ({ value, onChange, options = [], placeholder, icon, disab
   );
 };
 
-// ==================== COMPONENTE UPLOAD PDF ====================
-// O componente agora recebe a dataExtraida caso a API do PDF consiga ler o cabeçalho
 const UploadPDFButton = ({ onDataExtracted }: { onDataExtracted: (produtos: PrecoCeasa[], dataExtraida?: string) => void }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
@@ -659,7 +511,6 @@ const UploadPDFButton = ({ onDataExtracted }: { onDataExtracted: (produtos: Prec
       }
 
       setUploadProgress(`${data.totalProdutos || data.produtos.length} produtos encontrados!`);
-      // 🔥 CORREÇÃO: Agora usando dataExtraida (o campo correto vindo da API)
       onDataExtracted(data.produtos, data.dataExtraida);
       
       setTimeout(() => {
@@ -681,7 +532,7 @@ const UploadPDFButton = ({ onDataExtracted }: { onDataExtracted: (produtos: Prec
   return (
     <div className="relative">
       <label className={`
-        flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all
+        flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium cursor-pointer transition-all w-full sm:w-auto
         ${isUploading 
           ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
           : 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:shadow-md hover:-translate-y-0.5 active:translate-y-0'
@@ -710,7 +561,6 @@ const UploadPDFButton = ({ onDataExtracted }: { onDataExtracted: (produtos: Prec
   );
 };
 
-// ==================== TOAST MELHORADO ====================
 const ToastContainer = ({ toasts, onRemove }: { toasts: ToastMessage[]; onRemove: (id: string) => void }) => {
   if (!toasts.length) return null;
   
@@ -743,15 +593,6 @@ const ToastContainer = ({ toasts, onRemove }: { toasts: ToastMessage[]; onRemove
   );
 };
 
-// ==================== FUNÇÃO UUID SEGURA ====================
-const gerarIdUnico = (): string => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-};
-
-// ==================== PÁGINA DE CADASTRO ====================
 export default function NovaConferenciaPage() {
   const router = useRouter();
   const [isLoaded, setIsLoaded] = useState(false);
@@ -778,13 +619,10 @@ export default function NovaConferenciaPage() {
   const [supabaseStatus, setSupabaseStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
   const [isMounted, setIsMounted] = useState(false);
 
-  // Função de adicionar toast com Auto-dismiss (Some após 4 segundos)
   const addToast = (message: string, type: ToastMessage['type']) => {
     const id = gerarIdUnico();
     const newToast: ToastMessage = { id, message, type };
     setToasts(prev => [...prev, newToast]);
-    
-    // Auto remover o balão após 4 segundos
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 4000);
@@ -852,7 +690,7 @@ export default function NovaConferenciaPage() {
         }
       }
     } catch (e) {
-      console.warn("⚠️ Cache de nota corrompido. O sistema limpou a sujeira.");
+      console.warn("Cache de nota corrompido. O sistema limpou a sujeira.");
       if (typeof window !== 'undefined') window.localStorage.removeItem('nota_atual_hortifruti');
     } finally {
       if (isSubscribed) setIsLoaded(true);
@@ -874,7 +712,6 @@ export default function NovaConferenciaPage() {
     }
   }, [notaAtual, isLoaded]);
 
-  // Alerta de Inexistência da tabela quando o dia é alterado e não tem dados no BD
   useEffect(() => {
     if (!isMounted || !isLoaded) return;
     
@@ -891,7 +728,6 @@ export default function NovaConferenciaPage() {
               showToast(`✅ Tabela do dia ${formDataTabela} carregada (${precos.length} itens)`, 'success');
             } else {
               setPrecosCeasa([]);
-              // Se a busca retornar 0 itens, disparamos o aviso sugerido
               showToast(`⚠️ Nenhuma tabela de ${formDataTabela} encontrada. Faça o upload do PDF.`, 'warning');
             }
           }
@@ -986,7 +822,6 @@ export default function NovaConferenciaPage() {
     }
   }, [setupCategoria, setupProdutoId, precosCeasa, formDataTabela]);
 
-  // 🔥 CORREÇÃO: Extração Automática de Data do PDF - AGORA USANDO dataExtraida
   const handlePDFDataExtracted = async (produtos: PrecoCeasa[], dataExtraida?: string) => {
     if (!Array.isArray(produtos)) return;
     setPrecosCeasa(produtos);
@@ -994,7 +829,6 @@ export default function NovaConferenciaPage() {
     let dataFinalISO = formatarDataISO(formDataTabela);
     let dataFinalBR = formDataTabela;
 
-    // Se o backend extraiu a data oficial de dentro do PDF, atualizamos o calendário da tela
     if (dataExtraida) {
       if (dataExtraida.includes('/')) {
         dataFinalBR = dataExtraida;
@@ -1303,9 +1137,10 @@ export default function NovaConferenciaPage() {
     );
   }
 
+  // 🔥 ALTERAÇÃO 1: Container principal com Mobile First premium
   return (
-    <div className="space-y-4">
-      <div className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm">
+    <div className="space-y-4 max-w-screen-xl mx-auto px-2 sm:px-4 md:px-6">
+      <div className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white shadow-sm">
             <Package size={16} />
@@ -1316,9 +1151,9 @@ export default function NovaConferenciaPage() {
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           {supabaseStatus === 'connected' && (
-            <div className="hidden md:flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded-full">
+            <div className="flex items-center justify-center gap-1.5 bg-emerald-50 px-2 py-1.5 rounded-full">
               <Database size={12} className="text-emerald-600" />
               <span className="text-[10px] text-emerald-700 font-medium">Cloud</span>
             </div>
@@ -1327,42 +1162,39 @@ export default function NovaConferenciaPage() {
         </div>
       </div>
 
-      {/* Painel Visual destacando a Data da Tabela Ativa ou Ausência dela */}
-      {!notaAtual && (
-        Array.isArray(precosCeasa) && precosCeasa.length > 0 ? (
-          <div className="bg-emerald-50 border border-emerald-300 rounded-lg p-3 flex items-center justify-between shadow-sm animate-in fade-in duration-300">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-100 rounded-full">
-                <CheckCircle size={18} className="text-emerald-600" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-emerald-800">Tabela CEASA Ativa: {formDataTabela}</h3>
-                <p className="text-xs text-emerald-600 font-medium">
-                  Base de dados com {precosCeasa.length} produtos carregada e pronta para preenchimento automático.
-                </p>
-              </div>
+      {!notaAtual && Array.isArray(precosCeasa) && precosCeasa.length > 0 && (
+        <div className="bg-emerald-50 border border-emerald-300 rounded-lg p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-in fade-in duration-300">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-100 rounded-full">
+              <CheckCircle size={18} className="text-emerald-600" />
             </div>
-            <button onClick={() => setPrecosCeasa([])} className="text-xs font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded transition-colors shadow-sm">
-              Limpar Base
-            </button>
+            <div>
+              <h3 className="text-sm font-bold text-emerald-800">Tabela CEASA Ativa: {formDataTabela}</h3>
+              <p className="text-xs text-emerald-600 font-medium">
+                Base de dados com {precosCeasa.length} produtos carregada e pronta para preenchimento automático.
+              </p>
+            </div>
           </div>
-        ) : (
-          formDataTabela && (
-            <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 flex items-center justify-between shadow-sm animate-in fade-in duration-300">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-100 rounded-full animate-pulse">
-                  <AlertCircle size={18} className="text-amber-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-amber-800">Tabela de {formDataTabela} indisponível</h3>
-                  <p className="text-xs text-amber-700 font-medium">
-                    O preenchimento automático está desligado. Faça o upload do PDF deste dia ou altere a data abaixo.
-                  </p>
-                </div>
-              </div>
+          <button onClick={() => setPrecosCeasa([])} className="text-xs font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded transition-colors shadow-sm w-full sm:w-auto">
+            Limpar Base
+          </button>
+        </div>
+      )}
+
+      {!notaAtual && formDataTabela && (!Array.isArray(precosCeasa) || precosCeasa.length === 0) && (
+        <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-in fade-in duration-300">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-100 rounded-full animate-pulse">
+              <AlertCircle size={18} className="text-amber-600" />
             </div>
-          )
-        )
+            <div>
+              <h3 className="text-sm font-bold text-amber-800">Tabela de {formDataTabela} indisponível</h3>
+              <p className="text-xs text-amber-700 font-medium">
+                O preenchimento automático está desligado. Faça o upload do PDF deste dia ou altere a data abaixo.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       {!notaAtual ? (
@@ -1375,7 +1207,8 @@ export default function NovaConferenciaPage() {
               </div>
             </div>
             
-            <div className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+            {/* 🔥 ALTERAÇÃO 2: Grid com padding responsivo */}
+            <div className="p-3 sm:p-4 grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Empresa</label>
                 <input 
@@ -1498,7 +1331,7 @@ export default function NovaConferenciaPage() {
                 <button 
                   type="submit" 
                   disabled={!isFormValido}
-                  className={`bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg transition-all shadow-sm flex items-center gap-1.5 text-sm h-[38px] ${!isFormValido ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg transition-all shadow-sm flex items-center justify-center gap-1.5 text-sm h-[38px] ${!isFormValido ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <Plus size={14} /> Adicionar
                 </button>
@@ -1565,11 +1398,12 @@ export default function NovaConferenciaPage() {
         </>
       ) : (
         <div className="space-y-4">
-          <div className="bg-slate-800 rounded-xl shadow-lg p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 relative overflow-hidden">
+          {/* 🔥 ALTERAÇÃO 3: Header com flex responsivo vertical no mobile e horizontal no desktop */}
+          <div className="bg-slate-800 rounded-xl shadow-lg p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 relative overflow-hidden">
             <div className="absolute top-[-50%] right-[-10%] w-48 h-48 bg-emerald-500/20 rounded-full blur-[60px] pointer-events-none"></div>
             
             <div className="relative z-10">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span className="bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full tracking-wide">Validação Ativa</span>
                 <span className="text-slate-400 text-[10px]">Base CEASA: {notaAtual.dataTabelaCeasa}</span>
                 {isEditing && (
@@ -1585,14 +1419,14 @@ export default function NovaConferenciaPage() {
               </p>
             </div>
             
-            <div className="flex gap-2 relative z-10">
-              <button onClick={cancelarNota} className="bg-slate-700 hover:bg-slate-600 text-white font-medium px-4 py-1.5 rounded-lg transition-colors text-sm">
+            <div className="flex gap-2 relative z-10 w-full sm:w-auto">
+              <button onClick={cancelarNota} className="bg-slate-700 hover:bg-slate-600 text-white font-medium px-4 py-1.5 rounded-lg transition-colors text-sm flex-1 sm:flex-none">
                 Cancelar
               </button>
               <button 
                 onClick={finalizarNota} 
                 disabled={isSaving}
-                className={`font-bold px-5 py-1.5 rounded-lg transition-all shadow-md hover:shadow-lg flex items-center gap-1.5 text-sm ${
+                className={`font-bold px-5 py-1.5 rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 text-sm flex-1 sm:flex-none ${
                   notaTemErro 
                     ? 'bg-amber-500 hover:bg-amber-400 text-slate-900'
                     : 'bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-900'
@@ -1622,7 +1456,9 @@ export default function NovaConferenciaPage() {
             )}
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          {/* 🔥 ALTERAÇÃO 4: Tabela Desktop + Cards Mobile */}
+          {/* TABELA DESKTOP (visível apenas em md+) */}
+          <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
@@ -1655,7 +1491,6 @@ export default function NovaConferenciaPage() {
                       <td className="p-3 text-right font-bold text-emerald-600 text-sm">
                         {formatarMoeda(item.precoUnitarioComDesconto)}
                       </td>
-                      
                       <td className="p-3 text-right">
                         <input 
                           type="text" 
@@ -1666,7 +1501,6 @@ export default function NovaConferenciaPage() {
                           className="w-24 text-right font-bold text-sm text-amber-700 border-2 border-amber-200 rounded-lg py-1.5 px-2 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 bg-white" 
                         />
                       </td>
-
                       <td className="p-2 bg-emerald-50/50">
                         <input 
                           type="text" 
@@ -1677,7 +1511,6 @@ export default function NovaConferenciaPage() {
                           className="w-24 text-center font-bold text-base text-emerald-900 border-2 border-emerald-200 rounded-lg py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white" 
                         />
                       </td>
-
                       <td className="p-3 text-right font-bold text-slate-700 text-sm">
                         {formatarMoeda(item.totalNota || 0)}
                         {item.statusValidacao === 'divergente' && item.diferenca !== undefined && (
@@ -1707,7 +1540,7 @@ export default function NovaConferenciaPage() {
               </table>
             </div>
             
-            <div className={`p-4 flex flex-col md:flex-row justify-between items-center gap-2 ${
+            <div className={`p-4 flex flex-col sm:flex-row justify-between items-center gap-2 ${
               notaTemErro ? 'bg-rose-50' : 'bg-emerald-50'
             }`}>
               <div className="flex items-center gap-2">
@@ -1730,10 +1563,118 @@ export default function NovaConferenciaPage() {
               </div>
             </div>
           </div>
+
+          {/* CARDS MOBILE (visível apenas em telas menores que md) */}
+          <div className="md:hidden space-y-3">
+            {Array.isArray(notaAtual?.itens) && notaAtual.itens.map((item) => (
+              <div
+                key={item.id}
+                className={`rounded-xl border p-3 shadow-sm bg-white ${
+                  item.statusValidacao === 'divergente'
+                    ? 'border-red-300'
+                    : item.statusValidacao === 'ok'
+                    ? 'border-emerald-200'
+                    : 'border-slate-200'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wide">Produto</p>
+                    <p className="text-sm font-semibold text-slate-700">
+                      {item.produtoNome}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    {item.statusValidacao === 'ok' && (
+                      <span className="text-emerald-600 text-[10px] font-bold bg-emerald-50 px-2 py-0.5 rounded-full">OK</span>
+                    )}
+                    {item.statusValidacao === 'divergente' && (
+                      <span className="text-red-600 text-[10px] font-bold bg-red-50 px-2 py-0.5 rounded-full">DIVERGENTE</span>
+                    )}
+                    <span className="bg-rose-100 text-rose-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                      -{item.desconto}%
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                  <div>
+                    <p className="text-slate-400 text-[10px]">Ref. (KG/CX)</p>
+                    <p className="font-semibold text-slate-700">{item.kgCaixa}kg</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 text-[10px]">Preço CEASA/KG</p>
+                    <p className="font-bold text-emerald-600">{formatarMoeda(item.precoUnitarioComDesconto)}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 text-[10px]">Preço NF/KG</p>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={item.precoUnitarioNotaStr ?? ''}
+                      onChange={(e) => handlePrecoNotaChange(item.id, e.target.value)}
+                      placeholder="0,00"
+                      className="w-full border-2 border-amber-200 rounded-lg px-2 py-1.5 text-sm text-right font-bold text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-slate-400 text-[10px]">Quantidade (KG)</p>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={item.quantidadeStr ?? ''}
+                      onChange={(e) => handleQuantidadeChange(item.id, e.target.value)}
+                      placeholder="0,00"
+                      className="w-full border-2 border-emerald-200 rounded-lg px-2 py-1.5 text-sm text-center font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-100 mt-1">
+                      <p className="text-slate-400 text-[10px]">Total Nota</p>
+                      <p className="font-bold text-slate-800 text-base">{formatarMoeda(item.totalNota || 0)}</p>
+                    </div>
+                    {item.statusValidacao === 'divergente' && item.diferenca !== undefined && (
+                      <div className="flex justify-between items-center mt-1 pt-1">
+                        <p className="text-red-500 text-[9px] font-semibold">Diferença:</p>
+                        <p className="text-red-600 text-xs font-bold">{formatarMoeda(item.diferenca)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            <div className={`rounded-xl p-4 flex flex-col gap-2 ${
+              notaTemErro ? 'bg-rose-50 border border-rose-200' : 'bg-emerald-50 border border-emerald-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {notaTemErro ? (
+                    <AlertCircle size={18} className="text-rose-600" />
+                  ) : (
+                    <CheckCircle size={18} className="text-emerald-600" />
+                  )}
+                  <span className={`text-xs font-bold ${notaTemErro ? 'text-rose-700' : 'text-emerald-700'}`}>
+                    {notaTemErro ? 'DIVERGÊNCIAS' : 'VALIDADA'}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] text-slate-500">Total da Nota</p>
+                  <p className={`text-xl font-bold ${notaTemErro ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {formatarMoeda(notaAtual.totalGeral || 0)}
+                  </p>
+                </div>
+              </div>
+              <p className={`text-[10px] font-medium ${notaTemErro ? 'text-rose-600' : 'text-emerald-600'}`}>
+                {notaTemErro 
+                  ? '⚠️ Enviar correção ao fornecedor antes do pagamento' 
+                  : '✅ Todos os valores conferem com a tabela CEASA'}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Toast Container com múltiplos toasts */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
