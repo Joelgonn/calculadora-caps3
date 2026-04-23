@@ -1211,7 +1211,7 @@ export default function NovaConferenciaPage() {
               </div>
               
               <div>
-                <label className="block text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Tabela CEASA</label>
+                <label className="block text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Dia da Tabela CEASA</label>
                 <input 
                   type="date" 
                   value={(() => {
