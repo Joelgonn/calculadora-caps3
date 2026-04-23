@@ -14,6 +14,29 @@ const normalizarTexto = (texto: string) => {
     .toUpperCase();
 };
 
+// ==================== VALIDAÇÃO DE DATA ====================
+const isDataValida = (data?: string): boolean => {
+  if (!data) return false;
+
+  const partes = data.split('/');
+  if (partes.length !== 3) return false;
+
+  const dia = parseInt(partes[0], 10);
+  const mes = parseInt(partes[1], 10);
+  const ano = parseInt(partes[2], 10);
+
+  if (isNaN(dia) || isNaN(mes) || isNaN(ano)) return false;
+
+  return (
+    ano >= 2020 &&
+    ano <= 2100 &&
+    mes >= 1 &&
+    mes <= 12 &&
+    dia >= 1 &&
+    dia <= 31
+  );
+};
+
 // 🔥 VALIDADOR DE PRODUTO (CRÍTICO)
 const validarProduto = (p: ProdutoCEASA): boolean => {
   if (!p) return false;
@@ -47,7 +70,7 @@ const sanitizarProduto = (p: ProdutoCEASA): ProdutoCEASA => {
 // ==================== API ====================
 export async function POST(request: NextRequest) {
   const debug = process.env.NODE_ENV === 'development';
-  const dataReferencia = new Date().toISOString().split('T')[0];
+  const dataReferenciaDefault = new Date().toISOString().split('T')[0];
 
   console.log('📄 [API] Iniciando processamento de PDF...');
 
@@ -93,11 +116,30 @@ export async function POST(request: NextRequest) {
     }
 
     // ==================== 3. EXTRAÇÃO ====================
-    let produtos: ProdutoCEASA[] = [];
+    let produtosBrutos: ProdutoCEASA[] = [];
+    let dataExtraida: string | undefined;
 
     try {
-      produtos = await extrairProdutosDoPDF(buffer, dataReferencia, debug);
-      console.log(`✅ [API] Extraídos: ${produtos.length} produtos brutos`);
+      const resultado = await extrairProdutosDoPDF(buffer, undefined, debug);
+      produtosBrutos = resultado.produtos;
+      dataExtraida = resultado.dataExtraida;
+      
+      console.log(`✅ [API] Extraídos: ${produtosBrutos.length} produtos brutos`);
+      
+      // 🔥 LOG IMPORTANTE: Mostrar a data extraída
+      if (dataExtraida) {
+        console.log(`📅 [API] Data extraída do PDF (bruta): ${dataExtraida}`);
+        
+        // Validar a data antes de usar
+        if (isDataValida(dataExtraida)) {
+          console.log(`✅ [API] Data válida: ${dataExtraida}`);
+        } else {
+          console.log(`❌ [API] Data inválida, será ignorada: ${dataExtraida}`);
+          dataExtraida = undefined;
+        }
+      } else {
+        console.log(`📅 [API] Nenhuma data encontrada no PDF, usando fallback`);
+      }
     } catch (err) {
       console.error('❌ [API] Erro na extração:', err);
       return NextResponse.json({
@@ -111,7 +153,7 @@ export async function POST(request: NextRequest) {
     const produtosSanitizados: ProdutoCEASA[] = [];
     const rejeitados: ProdutoCEASA[] = [];
 
-    for (const p of produtos) {
+    for (const p of produtosBrutos) {
       const sanitizado = sanitizarProduto(p);
 
       if (validarProduto(sanitizado)) {
@@ -140,10 +182,33 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ [API] Após remoção de duplicados: ${produtosUnicos.length} produtos únicos`);
 
-    // ==================== 6. DEBUG ====================
+    // ==================== 6. DEFINIR DATA DE REFERÊNCIA ====================
+    // 🔥 CORREÇÃO: Só usa dataExtraida se ela for válida
+    let dataReferenciaFinal: string;
+    
+    if (dataExtraida && isDataValida(dataExtraida)) {
+      // Converter de DD/MM/AAAA para AAAA-MM-DD
+      const partes = dataExtraida.split('/');
+      const dataISO = `${partes[2]}-${partes[1]}-${partes[0]}`;
+      dataReferenciaFinal = dataISO;
+      console.log(`📅 [API] Usando data do PDF: ${dataExtraida} -> ${dataISO}`);
+    } else {
+      // Tenta pegar do formData se existir
+      const dataDoForm = formData.get('dataReferencia') as string | null;
+      if (dataDoForm && isDataValida(dataDoForm)) {
+        dataReferenciaFinal = dataDoForm;
+        console.log(`📅 [API] Usando data do formulário: ${dataDoForm}`);
+      } else {
+        dataReferenciaFinal = dataReferenciaDefault;
+        console.log(`📅 [API] Usando data atual (fallback): ${dataReferenciaDefault}`);
+      }
+    }
+
+    // ==================== 7. DEBUG ====================
     if (debug) {
       console.log('\n📊 ===== DEBUG API =====');
-      console.log(`📅 Data referência: ${dataReferencia}`);
+      console.log(`📅 Data referência (usada nos produtos): ${dataReferenciaFinal}`);
+      console.log(`📅 Data extraída do PDF (válida): ${dataExtraida || '❌ Não encontrada'}`);
       console.log(`✔ Válidos e únicos: ${produtosUnicos.length}`);
       console.log(`❌ Rejeitados: ${rejeitados.length}`);
 
@@ -170,7 +235,7 @@ export async function POST(request: NextRequest) {
       console.log('=======================\n');
     }
 
-    // ==================== 7. RESPOSTA ====================
+    // ==================== 8. RESPOSTA ====================
     if (produtosUnicos.length === 0) {
       console.warn('⚠️ [API] Nenhum produto válido encontrado no PDF');
       return NextResponse.json({
@@ -188,16 +253,23 @@ export async function POST(request: NextRequest) {
       tipo: p.tipo,
       kgEmbalagem: p.kgEmbalagem,
       valorMc: p.valorMc,
-      dataReferencia: p.dataReferencia || dataReferencia
+      dataReferencia: dataReferenciaFinal
     }));
 
     console.log(`✅ [API] Sucesso! Retornando ${respostaProdutos.length} produtos para o frontend`);
+    
+    // Converter dataExtraida para o formato que o frontend espera (DD/MM/AAAA)
+    let dataExtraidaFrontend: string | undefined = undefined;
+    if (dataExtraida && isDataValida(dataExtraida)) {
+      dataExtraidaFrontend = dataExtraida; // Já está no formato DD/MM/AAAA
+    }
 
     return NextResponse.json({
       success: true,
       totalProdutos: respostaProdutos.length,
       produtos: respostaProdutos,
-      dataReferencia: dataReferencia,
+      dataReferencia: dataReferenciaFinal,
+      dataExtraida: dataExtraidaFrontend, // 👈 Envia a data no formato DD/MM/AAAA
       rejeitadosCount: rejeitados.length
     });
 

@@ -21,221 +21,340 @@ import {
   Loader2,
   Sparkles,
   Database,
-  Pencil
+  Pencil,
+  Percent,
+  X
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { salvarPrecosCeasa, buscarPrecosCeasa, salvarNotaFiscal } from '@/lib/supabase/db';
 
 // ==================== BANCO DE DADOS CEASA COMPLETO ====================
-const PRODUTOS_CONTRATO = [
-  // --- ABACATES ---
-  { id: 101, codigo: 0, categoria: 'ABACATE', nome: 'AVOCADO', desconto: 10.00 },
-  { id: 102, codigo: 0, categoria: 'ABACATE', nome: 'FORTUNA', desconto: 10.00 },
-  { id: 103, codigo: 0, categoria: 'ABACATE', nome: 'MANTEIGA', desconto: 10.00 },
-  { id: 104, codigo: 0, categoria: 'ABACATE', nome: 'MARGARIDA', desconto: 10.00 },
-  { id: 200, codigo: 0, categoria: 'ABACATE', nome: 'GEADA', desconto: 10.00 },
+// Produtos com desconto = conforme edital
+// Produtos sem desconto = null (não constam no contrato)
 
-  // --- ABACAXI ---
+const PRODUTOS_CONTRATO = [
+  // ==================== ABACATES ====================
+  { id: 101, codigo: 0, categoria: 'ABACATE', nome: 'AVOCADO', desconto: null },
+  { id: 102, codigo: 0, categoria: 'ABACATE', nome: 'FORTUNA', desconto: null },
+  { id: 200, codigo: 0, categoria: 'ABACATE', nome: 'GEADA', desconto: null },
+  { id: 103, codigo: 0, categoria: 'ABACATE', nome: 'MANTEIGA', desconto: null },
+  { id: 104, codigo: 0, categoria: 'ABACATE', nome: 'MARGARIDA', desconto: null },
+
+  // ==================== ABACAXI ====================
   { id: 25, codigo: 1107, categoria: 'ABACAXI', nome: 'HAVAI MEDIO', desconto: 14.80 },
   { id: 26, codigo: 251658, categoria: 'ABACAXI', nome: 'PÉROLA GRAUDO', desconto: 18.10 },
-  { id: 201, codigo: 0, categoria: 'ABACAXI', nome: 'PÉROLA MÉDIO', desconto: 10.00 },
+  { id: 201, codigo: 0, categoria: 'ABACAXI', nome: 'PÉROLA MÉDIO', desconto: 18.10 },
 
-  // --- AMEIXA ---
-  { id: 202, codigo: 0, categoria: 'AMEIXA', nome: 'VERMELHA IMPORTADA', desconto: 10.00 },
-  { id: 203, codigo: 0, categoria: 'AMEIXA', nome: 'VERMELHA NACIONAL', desconto: 10.00 },
+  // ==================== AMEIXA ====================
+  { id: 202, codigo: 0, categoria: 'AMEIXA', nome: 'VERMELHA IMPORTADA', desconto: null },
+  { id: 203, codigo: 0, categoria: 'AMEIXA', nome: 'VERMELHA NACIONAL', desconto: null },
 
-  // --- BANANA ---
-  { id: 1, codigo: 364, categoria: 'BANANA', nome: 'MAÇÃ PRIMEIRA', desconto: 2.20 },
+  // ==================== BANANA ====================
   { id: 118, codigo: 0, categoria: 'BANANA', nome: 'CATURRA PRIMEIRA', desconto: 2.20 },
+  { id: 1, codigo: 364, categoria: 'BANANA', nome: 'MAÇÃ PRIMEIRA', desconto: 2.20 },
   { id: 119, codigo: 0, categoria: 'BANANA', nome: 'PRATA', desconto: 2.20 },
   { id: 120, codigo: 0, categoria: 'BANANA', nome: 'TERRA', desconto: 2.20 },
 
-  // --- DEMAIS FRUTAS (A-M) ---
-  { id: 204, codigo: 0, categoria: 'CAQUI', nome: 'IMPORTADO', desconto: 10.00 },
-  { id: 205, codigo: 0, categoria: 'CAQUI', nome: 'CHOCOLATE', desconto: 10.00 },
-  { id: 206, codigo: 0, categoria: 'CAQUI', nome: 'FUYU', desconto: 10.00 },
-  { id: 207, codigo: 0, categoria: 'COCO', nome: 'SECO', desconto: 10.00 },
-  { id: 208, codigo: 0, categoria: 'COCO', nome: 'VERDE', desconto: 10.00 },
-  { id: 209, codigo: 0, categoria: 'KIWI', nome: 'IMPORTADO', desconto: 10.00 },
-  { id: 124, codigo: 0, categoria: 'LARANJA', nome: 'BAHIA IMPORTADA', desconto: 10.00 },
-  { id: 210, codigo: 0, categoria: 'LARANJA', nome: 'BAHIA MÉDIA', desconto: 10.00 },
-  { id: 125, codigo: 0, categoria: 'LARANJA', nome: 'LIMA MÉDIA', desconto: 10.00 },
-  { id: 126, codigo: 0, categoria: 'LARANJA', nome: 'PERA MEDIA', desconto: 10.00 },
-  { id: 211, codigo: 0, categoria: 'LIMA PERSIA', nome: 'LIMA PERSIA', desconto: 10.00 },
-  { id: 128, codigo: 0, categoria: 'LIMAO', nome: 'ROSA', desconto: 10.00 },
-  { id: 129, codigo: 0, categoria: 'LIMAO', nome: 'SICILIANO IMPORTADO', desconto: 10.00 },
-  { id: 127, codigo: 0, categoria: 'LIMAO', nome: 'TAHITI GRAUDO', desconto: 10.00 },
-  { id: 212, codigo: 0, categoria: 'LIMAO', nome: 'TAHITI MEDIO', desconto: 10.00 },
-  
-  // --- MAÇÃS ---
-  { id: 132, codigo: 0, categoria: 'MAÇÃ', nome: 'EVA PRIMEIRA', desconto: 10.00 },
-  { id: 131, codigo: 0, categoria: 'MAÇÃ', nome: 'FUJI CAT 1 TP 80 A 100', desconto: 10.00 },
-  { id: 130, codigo: 0, categoria: 'MAÇÃ', nome: 'GALA CAT 1 TP 80 A 100', desconto: 10.00 },
-  { id: 133, codigo: 0, categoria: 'MAÇÃ IMPORTADA', nome: 'GRANNY SMITH TP 80 A 100', desconto: 10.00 },
-  { id: 213, codigo: 0, categoria: 'MAÇÃ IMPORTADA', nome: 'RED DELICIOUS TP80 A 100', desconto: 10.00 },
+  // ==================== CAQUI ====================
+  { id: 204, codigo: 0, categoria: 'CAQUI', nome: 'IMPORTADO', desconto: null },
+  { id: 205, codigo: 0, categoria: 'CAQUI', nome: 'CHOCOLATE', desconto: null },
+  { id: 206, codigo: 0, categoria: 'CAQUI', nome: 'FUYU', desconto: null },
 
-  // --- MAMÃO, MANGA, MARACUJÁ, MELANCIA, MELÃO ---
+  // ==================== COCO ====================
+  { id: 207, codigo: 0, categoria: 'COCO', nome: 'SECO', desconto: null },
+  { id: 208, codigo: 0, categoria: 'COCO', nome: 'VERDE', desconto: null },
+
+  // ==================== KIWI ====================
+  { id: 209, codigo: 0, categoria: 'KIWI', nome: 'IMPORTADO', desconto: null },
+
+  // ==================== LARANJA ====================
+  { id: 124, codigo: 0, categoria: 'LARANJA', nome: 'BAHIA IMPORTADA', desconto: null },
+  { id: 210, codigo: 0, categoria: 'LARANJA', nome: 'BAHIA MÉDIA', desconto: null },
+  { id: 125, codigo: 0, categoria: 'LARANJA', nome: 'LIMA MÉDIA', desconto: null },
+  { id: 126, codigo: 0, categoria: 'LARANJA', nome: 'PERA MEDIA', desconto: null },
+
+  // ==================== LIMA PERSIA ====================
+  { id: 211, codigo: 0, categoria: 'LIMA PERSIA', nome: 'LIMA PERSIA', desconto: null },
+
+  // ==================== LIMÃO ====================
+  { id: 128, codigo: 0, categoria: 'LIMAO', nome: 'ROSA', desconto: null },
+  { id: 129, codigo: 0, categoria: 'LIMAO', nome: 'SICILIANO IMPORTADO', desconto: null },
+  { id: 127, codigo: 0, categoria: 'LIMAO', nome: 'TAHITI GRAUDO', desconto: null },
+  { id: 212, codigo: 0, categoria: 'LIMAO', nome: 'TAHITI MEDIO', desconto: null },
+
+  // ==================== MAÇÃ ====================
+  { id: 132, codigo: 0, categoria: 'MAÇÃ', nome: 'EVA PRIMEIRA', desconto: null },
+  { id: 131, codigo: 0, categoria: 'MAÇÃ', nome: 'FUJI CAT 1 TP 80 A 100', desconto: null },
+  { id: 130, codigo: 0, categoria: 'MAÇÃ', nome: 'GALA CAT 1 TP 80 A 100', desconto: null },
+
+  // ==================== MAÇÃ IMPORTADA ====================
+  { id: 133, codigo: 0, categoria: 'MAÇÃ IMPORTADA', nome: 'GRANNY SMITH TP 80 A 100', desconto: null },
+  { id: 213, codigo: 0, categoria: 'MAÇÃ IMPORTADA', nome: 'RED DELICIOUS TP80 A 100', desconto: null },
+
+  // ==================== MAMÃO ====================
   { id: 134, codigo: 0, categoria: 'MAMÃO', nome: 'FORMOSA MADURO', desconto: 10.10 },
   { id: 33, codigo: 203412, categoria: 'MAMÃO', nome: 'PAPAYA/HAVAI 24', desconto: 10.10 },
+
+  // ==================== MANGA ====================
   { id: 135, codigo: 0, categoria: 'MANGA', nome: 'PALMER', desconto: 16.65 },
   { id: 12, codigo: 90548, categoria: 'MANGA', nome: 'TOMMY ATKINS', desconto: 16.65 },
+
+  // ==================== MARACUJÁ ====================
   { id: 13, codigo: 6602, categoria: 'MARACUJÁ', nome: 'AZEDO', desconto: 10.10 },
   { id: 136, codigo: 0, categoria: 'MARACUJÁ', nome: 'DOCE MEDIO', desconto: 10.10 },
+
+  // ==================== MELANCIA ====================
   { id: 137, codigo: 0, categoria: 'MELANCIA', nome: 'BABY', desconto: 19.10 },
   { id: 14, codigo: 1046, categoria: 'MELANCIA', nome: 'REDONDA', desconto: 19.10 },
-  { id: 138, codigo: 0, categoria: 'MELÃO', nome: 'AMARELO REI (5-7 UND.)', desconto: 10.00 },
-  { id: 214, codigo: 0, categoria: 'MELÃO', nome: 'AMARELO COMUM 08 A 10 UN', desconto: 10.00 },
-  { id: 215, codigo: 0, categoria: 'MELÃO', nome: 'ORANGE 5 A 6 UN', desconto: 10.00 },
-  { id: 139, codigo: 0, categoria: 'MELÃO', nome: 'PELE DE SAPO 5-6-8-10 UN', desconto: 10.00 },
+
+  // ==================== MELÃO ====================
+  { id: 138, codigo: 0, categoria: 'MELÃO', nome: 'AMARELO REI (5-7 UND.)', desconto: null },
+  { id: 214, codigo: 0, categoria: 'MELÃO', nome: 'AMARELO COMUM 08 A 10 UN', desconto: null },
+  { id: 215, codigo: 0, categoria: 'MELÃO', nome: 'ORANGE 5 A 6 UN', desconto: null },
+  { id: 139, codigo: 0, categoria: 'MELÃO', nome: 'PELE DE SAPO 5-6-8-10 UN', desconto: null },
+
+  // ==================== MORANGO ====================
   { id: 34, codigo: 93945, categoria: 'MORANGO', nome: 'TIPO 1', desconto: 10.20 },
 
-  // --- PERAS E PÊSSEGOS ---
-  { id: 216, codigo: 0, categoria: 'NECTARINA', nome: 'IMPORTADA', desconto: 10.00 },
-  { id: 217, codigo: 0, categoria: 'NECTARINA', nome: 'NACIONAL', desconto: 10.00 },
-  { id: 19, codigo: 268125, categoria: 'PERA IMPORTADA', nome: 'D\'ANJOU TP 80 A 100', desconto: 19.90 },
-  { id: 218, codigo: 0, categoria: 'PERA IMPORTADA', nome: 'PACKHAM\'S TP 80 A 100', desconto: 10.00 },
-  { id: 219, codigo: 0, categoria: 'PERA IMPORTADA', nome: 'PORTUGUESA', desconto: 10.00 },
-  { id: 220, codigo: 0, categoria: 'PERA IMPORTADA', nome: 'WILLIAMS TP 80 A 100', desconto: 10.00 },
-  { id: 221, codigo: 0, categoria: 'PÊRA NACIONAL', nome: 'YARI', desconto: 10.00 },
-  { id: 222, codigo: 0, categoria: 'PÊSSEGO', nome: 'IMPORTADO', desconto: 10.00 },
-  { id: 223, codigo: 0, categoria: 'PÊSSEGO', nome: 'NACIONAL', desconto: 10.00 },
-  { id: 224, codigo: 0, categoria: 'PITAIA', nome: 'C/12UN', desconto: 10.00 },
+  // ==================== NECTARINA ====================
+  { id: 216, codigo: 0, categoria: 'NECTARINA', nome: 'IMPORTADA', desconto: null },
+  { id: 217, codigo: 0, categoria: 'NECTARINA', nome: 'NACIONAL', desconto: null },
 
-  // --- TANGERINAS E UVAS ---
-  { id: 225, codigo: 0, categoria: 'TAMARA FRESCA', nome: 'FRESCA', desconto: 10.00 },
-  { id: 226, codigo: 0, categoria: 'TANGERINA', nome: 'CRAVO', desconto: 10.00 },
-  { id: 227, codigo: 0, categoria: 'TANGERINA', nome: 'MONTEN/BERGAM GRANDE', desconto: 10.00 },
+  // ==================== PERA IMPORTADA ====================
+  { id: 218, codigo: 0, categoria: 'PERA IMPORTADA', nome: 'D\'ANJOU TP 80 A 100', desconto: 19.90 },
+  { id: 219, codigo: 0, categoria: 'PERA IMPORTADA', nome: 'PACKHAM\'S TP 80 A 100', desconto: 19.90 },
+  { id: 220, codigo: 0, categoria: 'PERA IMPORTADA', nome: 'PORTUGUESA', desconto: 19.90 },
+  { id: 19, codigo: 268125, categoria: 'PERA IMPORTADA', nome: 'WILLIAMS TP 80 A 100', desconto: 19.90 },
+
+  // ==================== PÊRA NACIONAL ====================
+  { id: 221, codigo: 0, categoria: 'PÊRA NACIONAL', nome: 'YARI', desconto: null },
+
+  // ==================== PÊSSEGO ====================
+  { id: 222, codigo: 0, categoria: 'PÊSSEGO', nome: 'IMPORTADO', desconto: null },
+  { id: 223, codigo: 0, categoria: 'PÊSSEGO', nome: 'NACIONAL', desconto: null },
+
+  // ==================== PITAIA ====================
+  { id: 224, codigo: 0, categoria: 'PITAIA', nome: 'C/12UN', desconto: null },
+
+  // ==================== TAMARA FRESCA ====================
+  { id: 225, codigo: 0, categoria: 'TAMARA FRESCA', nome: 'FRESCA', desconto: null },
+
+  // ==================== TANGERINA ====================
+  { id: 226, codigo: 0, categoria: 'TANGERINA', nome: 'CRAVO', desconto: 10.10 },
+  { id: 227, codigo: 0, categoria: 'TANGERINA', nome: 'MONTEN/BERGAM GRANDE', desconto: 10.10 },
   { id: 15, codigo: 221173, categoria: 'TANGERINA', nome: 'MURKOTE MEDIA', desconto: 10.10 },
-  { id: 228, codigo: 0, categoria: 'TANGERINA', nome: 'PONKAN MEDIA', desconto: 10.00 },
-  { id: 229, codigo: 0, categoria: 'UVA', nome: 'BENITAKE NACIONAL', desconto: 10.00 },
-  { id: 230, codigo: 0, categoria: 'UVA', nome: 'BRASIL/CENTENIA NACIONAL', desconto: 10.00 },
-  { id: 231, codigo: 0, categoria: 'UVA', nome: 'CRINSON IMPORTADA', desconto: 10.00 },
-  { id: 232, codigo: 0, categoria: 'UVA', nome: 'CRINSON NACIONAL', desconto: 10.00 },
-  { id: 233, codigo: 0, categoria: 'UVA', nome: 'ITALIA NACIONAL', desconto: 10.00 },
-  { id: 142, codigo: 0, categoria: 'UVA', nome: 'NIAGARA ROSADA', desconto: 10.00 },
-  { id: 234, codigo: 0, categoria: 'UVA', nome: 'REDGLO IMPORTADA', desconto: 10.00 },
-  { id: 235, codigo: 0, categoria: 'UVA', nome: 'RUBI NACIONAL', desconto: 10.00 },
-  { id: 236, codigo: 0, categoria: 'UVA', nome: 'THOMPSON IMPORTADA', desconto: 10.00 },
-  { id: 237, codigo: 0, categoria: 'UVA', nome: 'THOMPSON NACIONAL', desconto: 10.00 },
-  { id: 238, codigo: 0, categoria: 'UVA', nome: 'VITÓRIA NACIONAL', desconto: 10.00 },
+  { id: 228, codigo: 0, categoria: 'TANGERINA', nome: 'PONKAN MEDIA', desconto: 10.10 },
 
-  // --- FRUTAS DIVERSAS (Amora a Nêspera) ---
-  { id: 239, codigo: 0, categoria: 'AMORA', nome: 'AMORA', desconto: 10.00 },
-  { id: 240, codigo: 0, categoria: 'ATEMOIA', nome: '15 UNID', desconto: 10.00 },
-  { id: 241, codigo: 0, categoria: 'CAJU', nome: 'CAJU', desconto: 10.00 },
-  { id: 242, codigo: 0, categoria: 'CARAMBOLA', nome: 'CARAMBOLA', desconto: 10.00 },
-  { id: 243, codigo: 0, categoria: 'CASTANHA', nome: 'PARÁ NACIONAL', desconto: 10.00 },
-  { id: 244, codigo: 0, categoria: 'CEREJA', nome: 'IMPORTADA', desconto: 10.00 },
-  { id: 245, codigo: 0, categoria: 'FIGO', nome: 'ROXO', desconto: 10.00 },
-  { id: 246, codigo: 0, categoria: 'FRAMBOESA', nome: 'FRAMBOESA', desconto: 10.00 },
+  // ==================== UVA ====================
+  { id: 229, codigo: 0, categoria: 'UVA', nome: 'BENITAKE NACIONAL', desconto: null },
+  { id: 230, codigo: 0, categoria: 'UVA', nome: 'BRASIL/CENTENIA NACIONAL', desconto: null },
+  { id: 231, codigo: 0, categoria: 'UVA', nome: 'CRINSON IMPORTADA', desconto: null },
+  { id: 232, codigo: 0, categoria: 'UVA', nome: 'CRINSON NACIONAL', desconto: null },
+  { id: 233, codigo: 0, categoria: 'UVA', nome: 'ITALIA NACIONAL', desconto: null },
+  { id: 142, codigo: 0, categoria: 'UVA', nome: 'NIAGARA ROSADA', desconto: null },
+  { id: 234, codigo: 0, categoria: 'UVA', nome: 'REDGLO IMPORTADA', desconto: null },
+  { id: 235, codigo: 0, categoria: 'UVA', nome: 'RUBI NACIONAL', desconto: null },
+  { id: 236, codigo: 0, categoria: 'UVA', nome: 'THOMPSON IMPORTADA', desconto: null },
+  { id: 237, codigo: 0, categoria: 'UVA', nome: 'THOMPSON NACIONAL', desconto: null },
+  { id: 238, codigo: 0, categoria: 'UVA', nome: 'VITÓRIA NACIONAL', desconto: null },
+
+  // ==================== DEMAIS FRUTAS ====================
+  { id: 239, codigo: 0, categoria: 'AMORA', nome: 'AMORA', desconto: null },
+  { id: 240, codigo: 0, categoria: 'ATEMOIA', nome: '15 UNID', desconto: null },
+  { id: 241, codigo: 0, categoria: 'CAJU', nome: 'CAJU', desconto: null },
+  { id: 242, codigo: 0, categoria: 'CARAMBOLA', nome: 'CARAMBOLA', desconto: null },
+  { id: 243, codigo: 0, categoria: 'CASTANHA', nome: 'PARÁ NACIONAL', desconto: null },
+  { id: 244, codigo: 0, categoria: 'CEREJA', nome: 'IMPORTADA', desconto: null },
+  { id: 245, codigo: 0, categoria: 'FIGO', nome: 'ROXO', desconto: null },
+  { id: 246, codigo: 0, categoria: 'FRAMBOESA', nome: 'FRAMBOESA', desconto: null },
   { id: 9, codigo: 89741, categoria: 'GOIABA', nome: 'VERMELHA', desconto: 10.10 },
-  { id: 247, codigo: 0, categoria: 'JABUTICABA', nome: 'JABUTICABA', desconto: 10.00 },
-  { id: 248, codigo: 0, categoria: 'JACA', nome: 'JACA', desconto: 10.00 },
-  { id: 249, codigo: 0, categoria: 'KINKAN', nome: 'KINKAN', desconto: 10.00 },
-  { id: 250, codigo: 0, categoria: 'LICHIA', nome: 'LICHIA', desconto: 10.00 },
-  { id: 251, codigo: 0, categoria: 'MIRTILO', nome: 'MIRTILO', desconto: 10.00 },
-  { id: 252, codigo: 0, categoria: 'NÊSPERA', nome: 'NÊSPERA', desconto: 10.00 },
-  { id: 253, codigo: 0, categoria: 'NOZ', nome: 'PECÃ', desconto: 10.00 },
-  { id: 254, codigo: 0, categoria: 'PHYSALIS', nome: 'VELUVA IMPORTADA', desconto: 10.00 },
-  { id: 255, codigo: 0, categoria: 'PINHA (FRUTA DO CONDE)', nome: 'PINHA', desconto: 10.00 },
-  { id: 256, codigo: 0, categoria: 'ROMA', nome: 'ROMA', desconto: 10.00 },
+  { id: 247, codigo: 0, categoria: 'JABUTICABA', nome: 'JABUTICABA', desconto: null },
+  { id: 248, codigo: 0, categoria: 'JACA', nome: 'JACA', desconto: null },
+  { id: 249, codigo: 0, categoria: 'KINKAN', nome: 'KINKAN', desconto: null },
+  { id: 250, codigo: 0, categoria: 'LICHIA', nome: 'LICHIA', desconto: null },
+  { id: 251, codigo: 0, categoria: 'MIRTILO', nome: 'MIRTILO', desconto: null },
+  { id: 252, codigo: 0, categoria: 'NÊSPERA', nome: 'NÊSPERA', desconto: null },
+  { id: 253, codigo: 0, categoria: 'NOZ', nome: 'PECÃ', desconto: null },
+  { id: 254, codigo: 0, categoria: 'PHYSALIS', nome: 'VELUVA IMPORTADA', desconto: null },
+  { id: 255, codigo: 0, categoria: 'PINHA (FRUTA DO CONDE)', nome: 'PINHA', desconto: null },
+  { id: 256, codigo: 0, categoria: 'ROMA', nome: 'ROMA', desconto: null },
 
-  // --- HORTALIÇAS FRUTOS ---
+  // ==================== HORTALIÇAS FRUTOS ====================
   { id: 2, codigo: 357, categoria: 'ABOBORA', nome: 'HOKAIDO/KABOTIA', desconto: 8.80 },
   { id: 4, codigo: 359, categoria: 'ABOBORA', nome: 'MENINA/PAULISTA', desconto: 10.50 },
   { id: 3, codigo: 90539, categoria: 'ABOBORA', nome: 'MORANGA', desconto: 10.30 },
-  { id: 105, codigo: 0, categoria: 'ABOBORA', nome: 'SECA/PESCOÇO', desconto: 10.50 },
+  { id: 105, codigo: 0, categoria: 'ABOBORA', nome: 'SECA/PESCOÇO', desconto: null },
+
+  // ==================== ABOBRINHA ====================
   { id: 106, codigo: 0, categoria: 'ABOBRINHA', nome: 'BRANCA EXTRA A', desconto: 10.30 },
   { id: 257, codigo: 0, categoria: 'ABOBRINHA', nome: 'BRANCA EXTRA AA', desconto: 10.30 },
   { id: 5, codigo: 111964, categoria: 'ABOBRINHA', nome: 'VERDE EXTRA A', desconto: 10.30 },
   { id: 107, codigo: 0, categoria: 'ABOBRINHA', nome: 'VERDE EXTRA AA', desconto: 10.30 },
+
+  // ==================== BERINJELA ====================
   { id: 258, codigo: 0, categoria: 'BERINJELA', nome: 'EXTRA A', desconto: 3.20 },
   { id: 30, codigo: 265691, categoria: 'BERINJELA', nome: 'EXTRA AA', desconto: 3.20 },
-  { id: 259, codigo: 0, categoria: 'CAXI', nome: 'CAXI', desconto: 10.00 },
-  { id: 260, codigo: 0, categoria: 'CHUCHU', nome: 'EXTRA A', desconto: 10.00 },
-  { id: 261, codigo: 0, categoria: 'CHUCHU', nome: 'EXTRA AA', desconto: 10.00 },
-  { id: 262, codigo: 0, categoria: 'ERVILHA', nome: 'TORTA (PR)', desconto: 10.00 },
+
+  // ==================== CAXI ====================
+  { id: 259, codigo: 0, categoria: 'CAXI', nome: 'CAXI', desconto: null },
+
+  // ==================== CHUCHU ====================
+  { id: 260, codigo: 0, categoria: 'CHUCHU', nome: 'EXTRA A', desconto: null },
+  { id: 261, codigo: 0, categoria: 'CHUCHU', nome: 'EXTRA AA', desconto: null },
+
+  // ==================== ERVILHA ====================
+  { id: 262, codigo: 0, categoria: 'ERVILHA', nome: 'TORTA (PR)', desconto: null },
+
+  // ==================== JILÓ ====================
   { id: 11, codigo: 266834, categoria: 'JILÓ', nome: 'PRIMEIRA', desconto: 7.10 },
-  { id: 263, codigo: 0, categoria: 'MAXIXE', nome: 'PRIMEIRA', desconto: 10.00 },
+
+  // ==================== MAXIXE ====================
+  { id: 263, codigo: 0, categoria: 'MAXIXE', nome: 'PRIMEIRA', desconto: null },
+
+  // ==================== MILHO ====================
   { id: 16, codigo: 400, categoria: 'MILHO', nome: 'VERDE BANDEJA C/4UN', desconto: 10.10 },
-  { id: 264, codigo: 0, categoria: 'MILHO', nome: 'VERDE SC C/50 ESPIGAS', desconto: 10.00 },
+  { id: 264, codigo: 0, categoria: 'MILHO', nome: 'VERDE SC C/50 ESPIGAS', desconto: 10.10 },
+
+  // ==================== PEPINO ====================
   { id: 17, codigo: 203414, categoria: 'PEPINO', nome: 'AODAI/SALADA EXTRA A', desconto: 10.10 },
-  { id: 265, codigo: 0, categoria: 'PEPINO', nome: 'AODAI/SALADA EXTRA AA', desconto: 10.00 },
-  { id: 266, codigo: 0, categoria: 'PEPINO', nome: 'JAPONÊS EXTRA A', desconto: 10.00 },
+  { id: 265, codigo: 0, categoria: 'PEPINO', nome: 'AODAI/SALADA EXTRA AA', desconto: 10.10 },
+  { id: 266, codigo: 0, categoria: 'PEPINO', nome: 'JAPONÊS EXTRA A', desconto: 10.10 },
   { id: 18, codigo: 1637, categoria: 'PEPINO', nome: 'JAPONÊS EXTRA AA', desconto: 10.10 },
-  
-  // --- PIMENTAS E PIMENTÕES ---
-  { id: 267, codigo: 0, categoria: 'PIMENTA', nome: 'AMERICANA', desconto: 10.00 },
-  { id: 268, codigo: 0, categoria: 'PIMENTA', nome: 'CAMBUCI', desconto: 10.00 },
-  { id: 269, codigo: 0, categoria: 'PIMENTA', nome: 'DEDO DE MOÇA/ARDIDA', desconto: 10.00 },
+
+  // ==================== PIMENTA ====================
+  { id: 267, codigo: 0, categoria: 'PIMENTA', nome: 'AMERICANA', desconto: null },
+  { id: 268, codigo: 0, categoria: 'PIMENTA', nome: 'CAMBUCI', desconto: null },
+  { id: 269, codigo: 0, categoria: 'PIMENTA', nome: 'DEDO DE MOÇA/ARDIDA', desconto: null },
+
+  // ==================== PIMENTÃO ====================
   { id: 20, codigo: 111965, categoria: 'PIMENTAO', nome: 'AMARELO EXTRA AA', desconto: 10.10 },
-  { id: 270, codigo: 0, categoria: 'PIMENTAO', nome: 'VERDE EXTRA A', desconto: 10.00 },
+  { id: 270, codigo: 0, categoria: 'PIMENTAO', nome: 'VERDE EXTRA A', desconto: 9.10 },
   { id: 21, codigo: 3693, categoria: 'PIMENTAO', nome: 'VERDE EXTRA AA', desconto: 9.10 },
   { id: 22, codigo: 111966, categoria: 'PIMENTAO', nome: 'VERMELHO EXTRA AA', desconto: 9.10 },
+
+  // ==================== QUIABO ====================
   { id: 23, codigo: 90537, categoria: 'QUIABO', nome: 'PRIMEIRA', desconto: 9.10 },
-  
-  // --- TOMATE E VAGEM ---
+
+  // ==================== TOMATE ====================
   { id: 140, codigo: 0, categoria: 'TOMATE', nome: 'CEREJA BANDEJA', desconto: 15.00 },
   { id: 271, codigo: 0, categoria: 'TOMATE', nome: 'CEREJA EXTRA AA', desconto: 15.00 },
   { id: 38, codigo: 416, categoria: 'TOMATE', nome: 'LONGA VIDA EXTRA AA', desconto: 15.00 },
   { id: 141, codigo: 0, categoria: 'TOMATE', nome: 'SALADETE EXTRA AA', desconto: 15.00 },
-  { id: 272, codigo: 0, categoria: 'VAGEM', nome: 'MACARRAO EXTRA A', desconto: 10.00 },
+
+  // ==================== VAGEM ====================
+  { id: 272, codigo: 0, categoria: 'VAGEM', nome: 'MACARRAO EXTRA A', desconto: 6.70 },
   { id: 24, codigo: 417, categoria: 'VAGEM', nome: 'MACARRAO EXTRA AA', desconto: 6.70 },
 
-  // --- HORTALIÇAS TUBEROSAS ---
-  { id: 273, codigo: 0, categoria: 'AIPIM-MANDIOCA', nome: 'PRIMEIRA', desconto: 10.00 },
-  { id: 274, codigo: 0, categoria: 'AIPIM-MANDIOCA', nome: 'TOLETE', desconto: 10.00 },
-  { id: 109, codigo: 0, categoria: 'ALHO IMPORTADO', nome: 'ROXO TP 6 A 7', desconto: 5.00 },
-  { id: 108, codigo: 0, categoria: 'ALHO NACIONAL', nome: 'ROXO TP 6 A 7', desconto: 5.00 },
-  { id: 114, codigo: 0, categoria: 'BATATA', nome: 'CASCA ROSADA ESPECIAL', desconto: 10.00 },
-  { id: 113, codigo: 0, categoria: 'BATATA', nome: 'COMUM ESPECIAL', desconto: 10.00 },
-  { id: 275, codigo: 0, categoria: 'BATATA', nome: 'COMUM PRIMEIRINHA', desconto: 10.00 },
-  { id: 115, codigo: 0, categoria: 'BATATA DOCE', nome: 'BRANCA EXTRA', desconto: 10.00 },
-  { id: 116, codigo: 0, categoria: 'BATATA DOCE', nome: 'ROXA EXTRA', desconto: 10.00 },
-  { id: 276, codigo: 0, categoria: 'BATATA YAKON', nome: 'YAKON', desconto: 10.00 },
-  { id: 277, codigo: 0, categoria: 'BETERRABA', nome: 'EXTRA A', desconto: 10.00 },
-  { id: 31, codigo: 371, categoria: 'BETERRABA', nome: 'EXTRA AA', desconto: 10.20 },
-  { id: 32, codigo: 221161, categoria: 'CARA', nome: 'EXTRA A', desconto: 6.20 },
-  { id: 110, codigo: 0, categoria: 'CEBOLA', nome: 'BRANCA NACIONAL', desconto: 10.00 },
-  { id: 278, codigo: 0, categoria: 'CEBOLA', nome: 'PERA NACIONAL', desconto: 10.00 },
-  { id: 111, codigo: 0, categoria: 'CEBOLA', nome: 'ROXA', desconto: 10.00 },
-  { id: 279, codigo: 0, categoria: 'CENOURA', nome: 'COMUM EXTRA A', desconto: 10.00 },
-  { id: 112, codigo: 0, categoria: 'CENOURA', nome: 'COMUM EXTRA AA', desconto: 10.00 },
-  { id: 8, codigo: 111968, categoria: 'GENGIBRE', nome: 'PRIMEIRA', desconto: 4.10 },
-  { id: 280, codigo: 0, categoria: 'GOBO', nome: 'GOBO', desconto: 10.00 },
-  { id: 10, codigo: 271015, categoria: 'INHAME-TAIÁ', nome: 'PRIMEIRA', desconto: 10.10 },
-  { id: 117, codigo: 0, categoria: 'MANDIOQUINHA/BATATA SALSA', nome: 'PRIMEIRA', desconto: 10.00 },
-  { id: 281, codigo: 0, categoria: 'NABO', nome: 'BRANCO', desconto: 10.00 },
-  { id: 282, codigo: 0, categoria: 'RABANETE', nome: 'DZ DE MAÇOS', desconto: 10.00 },
+  // ==================== HORTALIÇAS TUBEROSAS ====================
+  { id: 273, codigo: 0, categoria: 'AIPIM-MANDIOCA', nome: 'PRIMEIRA', desconto: null },
+  { id: 274, codigo: 0, categoria: 'AIPIM-MANDIOCA', nome: 'TOLETE', desconto: null },
 
-  // --- HORTALIÇAS HERBÁCEAS (Folhas) ---
+  // ==================== ALHO ====================
+  { id: 108, codigo: 0, categoria: 'ALHO NACIONAL', nome: 'ROXO TP 6 A 7', desconto: null },
+  { id: 109, codigo: 0, categoria: 'ALHO IMPORTADO', nome: 'ROXO TP 6 A 7', desconto: null },
+
+  // ==================== BATATA ====================
+  { id: 114, codigo: 0, categoria: 'BATATA', nome: 'CASCA ROSADA ESPECIAL', desconto: null },
+  { id: 113, codigo: 0, categoria: 'BATATA', nome: 'COMUM ESPECIAL', desconto: null },
+  { id: 275, codigo: 0, categoria: 'BATATA', nome: 'COMUM PRIMEIRINHA', desconto: null },
+
+  // ==================== BATATA DOCE ====================
+  { id: 115, codigo: 0, categoria: 'BATATA DOCE', nome: 'BRANCA EXTRA', desconto: null },
+  { id: 116, codigo: 0, categoria: 'BATATA DOCE', nome: 'ROXA EXTRA', desconto: null },
+
+  // ==================== BATATA YAKON ====================
+  { id: 276, codigo: 0, categoria: 'BATATA YAKON', nome: 'YAKON', desconto: null },
+
+  // ==================== BETERRABA ====================
+  { id: 277, codigo: 0, categoria: 'BETERRABA', nome: 'EXTRA A', desconto: 10.20 },
+  { id: 31, codigo: 371, categoria: 'BETERRABA', nome: 'EXTRA AA', desconto: 10.20 },
+
+  // ==================== CARÁ ====================
+  { id: 32, codigo: 221161, categoria: 'CARA', nome: 'EXTRA A', desconto: 6.20 },
+
+  // ==================== CEBOLA ====================
+  { id: 110, codigo: 0, categoria: 'CEBOLA', nome: 'BRANCA NACIONAL', desconto: null },
+  { id: 278, codigo: 0, categoria: 'CEBOLA', nome: 'PERA NACIONAL', desconto: null },
+  { id: 111, codigo: 0, categoria: 'CEBOLA', nome: 'ROXA', desconto: null },
+
+  // ==================== CENOURA ====================
+  { id: 279, codigo: 0, categoria: 'CENOURA', nome: 'COMUM EXTRA A', desconto: null },
+  { id: 112, codigo: 0, categoria: 'CENOURA', nome: 'COMUM EXTRA AA', desconto: null },
+
+  // ==================== GENGIBRE ====================
+  { id: 8, codigo: 111968, categoria: 'GENGIBRE', nome: 'PRIMEIRA', desconto: 4.10 },
+
+  // ==================== GOBO ====================
+  { id: 280, codigo: 0, categoria: 'GOBO', nome: 'GOBO', desconto: null },
+
+  // ==================== INHAME ====================
+  { id: 10, codigo: 271015, categoria: 'INHAME-TAIÁ', nome: 'PRIMEIRA', desconto: 10.10 },
+
+  // ==================== MANDIOQUINHA ====================
+  { id: 117, codigo: 0, categoria: 'MANDIOQUINHA/BATATA SALSA', nome: 'PRIMEIRA', desconto: null },
+
+  // ==================== NABO ====================
+  { id: 281, codigo: 0, categoria: 'NABO', nome: 'BRANCO', desconto: null },
+
+  // ==================== RABANETE ====================
+  { id: 282, codigo: 0, categoria: 'RABANETE', nome: 'DZ DE MAÇOS', desconto: null },
+
+  // ==================== HORTALIÇAS HERBÁCEAS ====================
   { id: 27, codigo: 361, categoria: 'AGRIAO', nome: 'MAÇO', desconto: 3.30 },
+
+  // ==================== ALFACE ====================
   { id: 28, codigo: 236941, categoria: 'ALFACE', nome: 'AMERICANA MÉDIA', desconto: 3.20 },
   { id: 29, codigo: 362, categoria: 'ALFACE', nome: 'CRESPA MEDIO', desconto: 3.20 },
-  { id: 283, codigo: 0, categoria: 'ALHO PORO', nome: 'MAÇO 4 UNID', desconto: 10.00 },
-  { id: 284, codigo: 0, categoria: 'ALMEIRAO', nome: 'PÃO DE ACUCAR MAÇO', desconto: 10.00 },
-  { id: 285, codigo: 0, categoria: 'ASPARGO', nome: 'ASPARGO', desconto: 10.00 },
-  { id: 123, codigo: 0, categoria: 'CEBOLINHA', nome: 'CEBOLINHA', desconto: 3.00 },
+
+  // ==================== ALHO PORO ====================
+  { id: 283, codigo: 0, categoria: 'ALHO PORO', nome: 'MAÇO 4 UNID', desconto: null },
+
+  // ==================== ALMEIRÃO ====================
+  { id: 284, codigo: 0, categoria: 'ALMEIRAO', nome: 'PÃO DE ACUCAR MAÇO', desconto: null },
+
+  // ==================== ASPARGO ====================
+  { id: 285, codigo: 0, categoria: 'ASPARGO', nome: 'ASPARGO', desconto: null },
+
+  // ==================== CEBOLINHA ====================
+  { id: 123, codigo: 0, categoria: 'CEBOLINHA', nome: 'CEBOLINHA', desconto: null },
+
+  // ==================== COENTRO ====================
   { id: 6, codigo: 272822, categoria: 'COENTRO', nome: 'MAÇO', desconto: 2.70 },
-  { id: 286, codigo: 0, categoria: 'COUVE BROCOLO', nome: 'AMERICANA DUZIA', desconto: 10.00 },
-  { id: 287, codigo: 0, categoria: 'COUVE CHINESA', nome: 'GRANDE', desconto: 10.00 },
+
+  // ==================== COUVE ====================
+  { id: 286, codigo: 0, categoria: 'COUVE BROCOLO', nome: 'AMERICANA DUZIA', desconto: null },
+  { id: 287, codigo: 0, categoria: 'COUVE CHINESA', nome: 'GRANDE', desconto: null },
   { id: 7, codigo: 379, categoria: 'COUVE FLOR', nome: 'MÉDIA', desconto: 2.70 },
-  { id: 122, codigo: 0, categoria: 'COUVE MANTEIGA', nome: 'MAÇO', desconto: 3.00 },
-  { id: 288, codigo: 0, categoria: 'ESCAROLA/CHICORIA', nome: 'ESCAROLA/CHICORIA', desconto: 10.00 },
-  { id: 289, codigo: 0, categoria: 'ESPINAFRE', nome: 'ESPINAFRE', desconto: 10.00 },
-  { id: 290, codigo: 0, categoria: 'HORTELA', nome: 'HORTELA', desconto: 10.00 },
+  { id: 122, codigo: 0, categoria: 'COUVE MANTEIGA', nome: 'MAÇO', desconto: null },
+
+  // ==================== ESCAROLA ====================
+  { id: 288, codigo: 0, categoria: 'ESCAROLA/CHICORIA', nome: 'ESCAROLA/CHICORIA', desconto: null },
+
+  // ==================== ESPINAFRE ====================
+  { id: 289, codigo: 0, categoria: 'ESPINAFRE', nome: 'ESPINAFRE', desconto: null },
+
+  // ==================== HORTELA ====================
+  { id: 290, codigo: 0, categoria: 'HORTELA', nome: 'HORTELA', desconto: null },
+
+  // ==================== REPOLHO ====================
   { id: 36, codigo: 90933, categoria: 'REPOLHO', nome: 'ROXO GRANDE/MEDIO', desconto: 10.00 },
   { id: 35, codigo: 98800, categoria: 'REPOLHO', nome: 'VERDE MEDIO', desconto: 10.00 },
-  { id: 37, codigo: 413, categoria: 'RUCULA', nome: 'RUCULA', desconto: 8.60 },
-  { id: 291, codigo: 0, categoria: 'SALSAO (AIPO)', nome: 'SALSAO (AIPO)', desconto: 10.00 },
-  { id: 292, codigo: 0, categoria: 'SALSINHA', nome: 'SALSINHA', desconto: 10.00 },
 
-  // --- GRANJEIROS E OUTROS ---
-  { id: 293, codigo: 0, categoria: 'OVO', nome: 'BRANCO EXTRA', desconto: 10.00 },
-  { id: 294, codigo: 0, categoria: 'OVO', nome: 'BRANCO MEDIO', desconto: 10.00 },
-  { id: 295, codigo: 0, categoria: 'OVO', nome: 'CODORNA', desconto: 10.00 },
-  { id: 296, codigo: 0, categoria: 'OVO', nome: 'VERMELHO EXTRA', desconto: 10.00 },
-  { id: 297, codigo: 0, categoria: 'AMENDOIM', nome: 'COM CASCA', desconto: 10.00 },
+  // ==================== RÚCULA ====================
+  { id: 37, codigo: 413, categoria: 'RUCULA', nome: 'RUCULA', desconto: 8.60 },
+
+  // ==================== SALSA ====================
+  { id: 291, codigo: 0, categoria: 'SALSAO (AIPO)', nome: 'SALSAO (AIPO)', desconto: null },
+  { id: 292, codigo: 0, categoria: 'SALSINHA', nome: 'SALSINHA', desconto: null },
+
+  // ==================== GRANJEIROS ====================
+  { id: 293, codigo: 0, categoria: 'OVO', nome: 'BRANCO EXTRA', desconto: null },
+  { id: 294, codigo: 0, categoria: 'OVO', nome: 'BRANCO MEDIO', desconto: null },
+  { id: 295, codigo: 0, categoria: 'OVO', nome: 'CODORNA', desconto: null },
+  { id: 296, codigo: 0, categoria: 'OVO', nome: 'VERMELHO EXTRA', desconto: null },
+
+  // ==================== GRÃOS E CEREAIS ====================
+  { id: 297, codigo: 0, categoria: 'AMENDOIM', nome: 'COM CASCA', desconto: null },
 ];
 
 // ==================== TIPOS ====================
@@ -277,6 +396,13 @@ interface PrecoCeasa {
   tipo: string;
   kgEmbalagem: number;
   valorMc: number;
+}
+
+// ==================== TOAST TYPES ====================
+interface ToastMessage {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info' | 'warning';
 }
 
 // ==================== UTILITÁRIOS SEGUROS ====================
@@ -335,7 +461,7 @@ const validarPreco = (valorNota: number, valorCeasa: number): { status: 'ok' | '
   };
 };
 
-// ==================== SELECTOR PERSONALIZADO (SEM PORTAL - 100% SEGURO) ====================
+// ==================== SELECTOR PERSONALIZADO ====================
 interface PremiumSelectProps {
   value: string;
   onChange: (value: string) => void;
@@ -446,7 +572,6 @@ const PremiumSelect = ({ value, onChange, options = [], placeholder, icon, disab
         <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
-      {/* ✅ SEM PORTAL - RENDER DIRETO NA ÁRVORE COM POSITION FIXED */}
       {isOpen && !disabled && (
         <div 
           ref={dropdownRef}
@@ -496,7 +621,8 @@ const PremiumSelect = ({ value, onChange, options = [], placeholder, icon, disab
 };
 
 // ==================== COMPONENTE UPLOAD PDF ====================
-const UploadPDFButton = ({ onDataExtracted }: { onDataExtracted: (produtos: PrecoCeasa[]) => void }) => {
+// O componente agora recebe a dataExtraida caso a API do PDF consiga ler o cabeçalho
+const UploadPDFButton = ({ onDataExtracted }: { onDataExtracted: (produtos: PrecoCeasa[], dataExtraida?: string) => void }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
 
@@ -533,7 +659,8 @@ const UploadPDFButton = ({ onDataExtracted }: { onDataExtracted: (produtos: Prec
       }
 
       setUploadProgress(`${data.totalProdutos || data.produtos.length} produtos encontrados!`);
-      onDataExtracted(data.produtos);
+      // 🔥 CORREÇÃO: Agora usando dataExtraida (o campo correto vindo da API)
+      onDataExtracted(data.produtos, data.dataExtraida);
       
       setTimeout(() => {
         setUploadProgress('');
@@ -583,36 +710,44 @@ const UploadPDFButton = ({ onDataExtracted }: { onDataExtracted: (produtos: Prec
   );
 };
 
-// ==================== TOAST ====================
-const Toast = ({ message, type, onClose }: { message: string; type: string; onClose: () => void }) => {
-  useEffect(() => { 
-    const timer = setTimeout(onClose, 3000); 
-    return () => clearTimeout(timer); 
-  }, [onClose]);
-  
-  const config = {
-    success: { bg: 'bg-emerald-500', icon: <CheckCircle size={18} /> },
-    error: { bg: 'bg-red-500', icon: <AlertCircle size={18} /> },
-    info: { bg: 'bg-blue-500', icon: <Info size={18} /> }
-  };
-  
-  const current = config[type as keyof typeof config] || config.info;
+// ==================== TOAST MELHORADO ====================
+const ToastContainer = ({ toasts, onRemove }: { toasts: ToastMessage[]; onRemove: (id: string) => void }) => {
+  if (!toasts.length) return null;
   
   return (
-    <div className={`fixed bottom-4 right-4 z-[10000] flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg ${current.bg} text-white text-sm animate-in slide-in-from-right-5 duration-300`}>
-      {current.icon}
-      <span>{message || ''}</span>
+    <div className="fixed bottom-4 right-4 z-[10000] flex flex-col gap-2">
+      {toasts.map((toast) => {
+        const config = {
+          success: { bg: 'bg-emerald-500', icon: <CheckCircle size={18} />, border: 'border-emerald-600' },
+          error: { bg: 'bg-red-500', icon: <AlertCircle size={18} />, border: 'border-red-600' },
+          warning: { bg: 'bg-amber-500', icon: <AlertCircle size={18} />, border: 'border-amber-600' },
+          info: { bg: 'bg-blue-500', icon: <Info size={18} />, border: 'border-blue-600' }
+        };
+        
+        const current = config[toast.type as keyof typeof config] || config.info;
+        
+        return (
+          <div
+            key={toast.id}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg ${current.bg} text-white text-sm animate-in slide-in-from-right-5 duration-300 min-w-[280px] max-w-[400px] border-l-4 ${current.border}`}
+          >
+            {current.icon}
+            <span className="flex-1">{toast.message}</span>
+            <button onClick={() => onRemove(toast.id)} className="hover:bg-white/20 rounded p-0.5 transition-colors">
+              <X size={14} />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 };
 
-// ==================== FUNÇÃO UUID SEGURA (SEM DEPENDÊNCIA EXTERNA) ====================
+// ==================== FUNÇÃO UUID SEGURA ====================
 const gerarIdUnico = (): string => {
-  // ✅ Usando crypto.randomUUID() que é nativo e seguro
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
-  // Fallback para ambientes sem crypto
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
@@ -637,25 +772,42 @@ export default function NovaConferenciaPage() {
   const [setupProdutoId, setSetupProdutoId] = useState('');
   const [setupKgCaixa, setSetupKgCaixa] = useState('');
   const [setupValorCaixa, setSetupValorCaixa] = useState('');
-  const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [precosCeasa, setPrecosCeasa] = useState<PrecoCeasa[]>([]);
   const [resetEffect, setResetEffect] = useState(false);
   const [supabaseStatus, setSupabaseStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
   const [isMounted, setIsMounted] = useState(false);
 
-  // ✅ SEGURANÇA: Marcar que o componente montou no client
+  // Função de adicionar toast com Auto-dismiss (Some após 4 segundos)
+  const addToast = (message: string, type: ToastMessage['type']) => {
+    const id = gerarIdUnico();
+    const newToast: ToastMessage = { id, message, type };
+    setToasts(prev => [...prev, newToast]);
+    
+    // Auto remover o balão após 4 segundos
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  const showToast = (message: string, type: string) => {
+    addToast(message, type as ToastMessage['type']);
+  };
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Listas Protegidas contra componentes nulos
   const categoriasDisponiveis = Array.from(new Set(PRODUTOS_CONTRATO.filter(p => p?.categoria).map(p => p.categoria))).sort();
   const subtiposDisponiveis = PRODUTOS_CONTRATO
     .filter(p => p?.categoria === setupCategoria)
     .sort((a, b) => (a?.nome || '').localeCompare(b?.nome || ''))
     .map(p => ({ value: p.id.toString(), label: p.nome || 'Sem nome', discount: p.desconto }));
 
-  // ✅ Verificar conexão com Supabase de forma 100% segura
   useEffect(() => {
     if (!isMounted) return;
     
@@ -677,7 +829,6 @@ export default function NovaConferenciaPage() {
     return () => { isSubscribed = false; };
   }, [isMounted]);
 
-  // ✅ Carregar nota em andamento COM TRY CATCH REFORÇADO (A PROVA DE CRASH)
   useEffect(() => {
     if (!isMounted) return;
     
@@ -709,7 +860,6 @@ export default function NovaConferenciaPage() {
     return () => { isSubscribed = false; };
   }, [isMounted]);
 
-  // ✅ Salvar nota em andamento no cache
   useEffect(() => {
     if (isLoaded && typeof window !== 'undefined') {
       try {
@@ -724,9 +874,9 @@ export default function NovaConferenciaPage() {
     }
   }, [notaAtual, isLoaded]);
 
-  // ✅ Carregar preços da CEASA seguros
+  // Alerta de Inexistência da tabela quando o dia é alterado e não tem dados no BD
   useEffect(() => {
-    if (!isMounted) return;
+    if (!isMounted || !isLoaded) return;
     
     let isSubscribed = true;
     const carregarPrecosDoBanco = async () => {
@@ -735,9 +885,15 @@ export default function NovaConferenciaPage() {
           const dtIso = formatarDataISO(formDataTabela);
           if (!dtIso) return;
           const precos = await buscarPrecosCeasa(dtIso);
-          if (isSubscribed && precos && Array.isArray(precos) && precos.length > 0) {
-            setPrecosCeasa(precos);
-            showToast(`${precos.length} preços carregados!`, 'info');
+          if (isSubscribed) {
+            if (precos && Array.isArray(precos) && precos.length > 0) {
+              setPrecosCeasa(precos);
+              showToast(`✅ Tabela do dia ${formDataTabela} carregada (${precos.length} itens)`, 'success');
+            } else {
+              setPrecosCeasa([]);
+              // Se a busca retornar 0 itens, disparamos o aviso sugerido
+              showToast(`⚠️ Nenhuma tabela de ${formDataTabela} encontrada. Faça o upload do PDF.`, 'warning');
+            }
           }
         } catch (e) {
           console.warn("Falha ao carregar precos silenciosa.");
@@ -746,9 +902,8 @@ export default function NovaConferenciaPage() {
     };
     carregarPrecosDoBanco();
     return () => { isSubscribed = false; };
-  }, [formDataTabela, supabaseStatus, isMounted]);
+  }, [formDataTabela, supabaseStatus, isLoaded, isMounted]);
 
-  // ✅ Resetar campos ao mudar a CATEGORIA
   useEffect(() => {
     setSetupProdutoId('');
     setSetupKgCaixa('');
@@ -758,7 +913,6 @@ export default function NovaConferenciaPage() {
     return () => clearTimeout(t);
   }, [setupCategoria]);
 
-  // ✅ BUSCAR PREÇO AUTOMATICAMENTE E ZERAR SE NECESSÁRIO
   useEffect(() => {
     if (!setupProdutoId) {
       setSetupKgCaixa('');
@@ -828,24 +982,41 @@ export default function NovaConferenciaPage() {
     } else {
       setSetupKgCaixa('');
       setSetupValorCaixa('');
-      showToast(`Preço não encontrado`, 'error');
+      showToast(`Preço não encontrado na tabela de ${formDataTabela}`, 'error');
     }
-  }, [setupCategoria, setupProdutoId, precosCeasa]);
+  }, [setupCategoria, setupProdutoId, precosCeasa, formDataTabela]);
 
-  const showToast = (message: string, type: string) => setToast({ message, type });
-
-  const handlePDFDataExtracted = async (produtos: PrecoCeasa[]) => {
+  // 🔥 CORREÇÃO: Extração Automática de Data do PDF - AGORA USANDO dataExtraida
+  const handlePDFDataExtracted = async (produtos: PrecoCeasa[], dataExtraida?: string) => {
     if (!Array.isArray(produtos)) return;
     setPrecosCeasa(produtos);
+
+    let dataFinalISO = formatarDataISO(formDataTabela);
+    let dataFinalBR = formDataTabela;
+
+    // Se o backend extraiu a data oficial de dentro do PDF, atualizamos o calendário da tela
+    if (dataExtraida) {
+      if (dataExtraida.includes('/')) {
+        dataFinalBR = dataExtraida;
+        dataFinalISO = formatarDataISO(dataExtraida);
+      } else if (dataExtraida.includes('-')) {
+        const [y, m, d] = dataExtraida.split('-');
+        dataFinalBR = `${d}/${m}/${y}`;
+        dataFinalISO = dataExtraida;
+      }
+      setFormDataTabela(dataFinalBR);
+      showToast(`📅 Data ajustada automaticamente pelo PDF: ${dataFinalBR}`, 'success');
+    }
+
     if (supabaseStatus === 'connected') {
       try {
-        await salvarPrecosCeasa(formatarDataISO(formDataTabela), produtos);
-        showToast(`${produtos.length} preços salvos na nuvem!`, 'success');
+        await salvarPrecosCeasa(dataFinalISO, produtos);
+        showToast(`${produtos.length} preços salvos na nuvem para o dia ${dataFinalBR}!`, 'success');
       } catch (error) {
         showToast('Erro ao salvar no banco, mas dados estão no navegador', 'error');
       }
     } else {
-      showToast(`${produtos.length} preços carregados no navegador`, 'info');
+      showToast(`${produtos.length} preços carregados no navegador para ${dataFinalBR}`, 'info');
     }
   };
 
@@ -863,6 +1034,12 @@ export default function NovaConferenciaPage() {
     const precoSemDesconto = valor / kg;
     const precoFinalArredondado = calcularPrecoComDesconto(precoSemDesconto, produto.desconto || 0);
     const nomeCompleto = `${produto.categoria || ''} - ${produto.nome || ''}`;
+
+    if (produto.desconto !== null && produto.desconto !== undefined && produto.desconto > 0) {
+      addToast(`✅ Adicionado ${produto.categoria} - ${produto.nome} com desconto de ${produto.desconto}%`, 'success');
+    } else {
+      addToast(`⚠️ Adicionado ${produto.categoria} - ${produto.nome} (sem desconto no edital)`, 'warning');
+    }
 
     const novoItem: ItemNota = {
       id: gerarIdUnico(),
@@ -889,7 +1066,6 @@ export default function NovaConferenciaPage() {
     setSetupProdutoId('');
     setSetupKgCaixa('');
     setSetupValorCaixa('');
-    showToast(`Adicionado!`, 'success');
   };
 
   const removerItemSetup = (id: string) => {
@@ -1075,7 +1251,7 @@ export default function NovaConferenciaPage() {
         }
       }
       
-      showToast('Sucesso!', 'success');
+      showToast('Nota salva com sucesso!', 'success');
       
       setNotaAtual(null);
       setIsEditing(false);
@@ -1118,7 +1294,6 @@ export default function NovaConferenciaPage() {
     !isNaN(kgFloat) && kgFloat > 0 && 
     !isNaN(vlFloat) && vlFloat > 0;
 
-  // ✅ SEGURANÇA: Loading state para garantir que o componente só renderiza no client
   if (!isMounted || !isLoaded) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -1152,18 +1327,42 @@ export default function NovaConferenciaPage() {
         </div>
       </div>
 
-      {Array.isArray(precosCeasa) && precosCeasa.length > 0 && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles size={14} className="text-emerald-600" />
-            <span className="text-xs text-emerald-700 font-medium">
-              {precosCeasa.length} preços carregados
-            </span>
+      {/* Painel Visual destacando a Data da Tabela Ativa ou Ausência dela */}
+      {!notaAtual && (
+        Array.isArray(precosCeasa) && precosCeasa.length > 0 ? (
+          <div className="bg-emerald-50 border border-emerald-300 rounded-lg p-3 flex items-center justify-between shadow-sm animate-in fade-in duration-300">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-100 rounded-full">
+                <CheckCircle size={18} className="text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-emerald-800">Tabela CEASA Ativa: {formDataTabela}</h3>
+                <p className="text-xs text-emerald-600 font-medium">
+                  Base de dados com {precosCeasa.length} produtos carregada e pronta para preenchimento automático.
+                </p>
+              </div>
+            </div>
+            <button onClick={() => setPrecosCeasa([])} className="text-xs font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded transition-colors shadow-sm">
+              Limpar Base
+            </button>
           </div>
-          <button onClick={() => setPrecosCeasa([])} className="text-xs text-emerald-600 hover:text-emerald-800">
-            Limpar
-          </button>
-        </div>
+        ) : (
+          formDataTabela && (
+            <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 flex items-center justify-between shadow-sm animate-in fade-in duration-300">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-100 rounded-full animate-pulse">
+                  <AlertCircle size={18} className="text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-amber-800">Tabela de {formDataTabela} indisponível</h3>
+                  <p className="text-xs text-amber-700 font-medium">
+                    O preenchimento automático está desligado. Faça o upload do PDF deste dia ou altere a data abaixo.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )
+        )
       )}
 
       {!notaAtual ? (
@@ -1324,7 +1523,14 @@ export default function NovaConferenciaPage() {
                       <tbody className="divide-y divide-slate-50">
                         {itensCeasa.map(item => (
                           <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-3 py-2 font-semibold text-slate-700 text-xs">{item.produtoNome}</td>
+                            <td className="px-3 py-2 font-semibold text-slate-700 text-xs">
+                              {item.produtoNome}
+                              {item.desconto === 0 && (
+                                <span className="ml-2 inline-flex items-center gap-0.5 bg-amber-100 text-amber-600 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                                  <AlertCircle size={10} /> sem desconto
+                                </span>
+                              )}
+                            </td>
                             <td className="px-3 py-2 text-center">
                               <span className="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded text-[10px] font-medium">{item.kgCaixa}kg</span>
                             </td>
@@ -1527,7 +1733,8 @@ export default function NovaConferenciaPage() {
         </div>
       )}
 
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {/* Toast Container com múltiplos toasts */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

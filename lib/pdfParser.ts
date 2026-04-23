@@ -124,17 +124,109 @@ export async function parsePDF(file: Buffer | Uint8Array): Promise<string> {
 
   const data = await pdf(buffer);
   return data.text || '';
-}
+};
+
+// ==================== EXTRAIR DATA DO PDF (VERSÃO ROBUSTA) ====================
+const extrairDataDoPDF = (linhas: string[]): string | undefined => {
+  const normalizar = (t: string) =>
+    t
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase();
+
+  // ================================
+  // 1. PRIORIDADE MÁXIMA: "DATA DA COLETA"
+  // ================================
+  for (const linha of linhas) {
+    const l = normalizar(linha);
+
+    if (l.includes('DATA DA COLETA') || l.includes('DATA DE COLETA')) {
+      const match = linha.match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/);
+      if (match) {
+        console.log(`📅 [Parser] Data encontrada na linha "DATA DA COLETA": ${match[0]}`);
+        return match[0];
+      }
+    }
+  }
+
+  // ================================
+  // 2. DATA COM TEXTO (sexta-feira, etc.)
+  // ================================
+  for (const linha of linhas.slice(0, 50)) {
+    const match = linha.match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/);
+    if (match) {
+      console.log(`📅 [Parser] Data encontrada (texto contextual): ${match[0]}`);
+      return match[0];
+    }
+  }
+
+  // ================================
+  // 3. FALLBACK GLOBAL (último recurso)
+  // ================================
+  for (const linha of linhas) {
+    const match = linha.match(/\b(\d{2})[\/\-](\d{2})[\/\-](\d{4})\b/);
+    if (match) {
+      console.log(`📅 [Parser] Data encontrada (fallback global): ${match[0]}`);
+      return match[0];
+    }
+  }
+
+  console.log(`📅 [Parser] Nenhuma data encontrada no PDF`);
+  return undefined;
+};
+
+// ==================== VALIDAÇÃO DE DATA ====================
+const isDataValida = (data?: string): boolean => {
+  if (!data) return false;
+
+  const partes = data.split('/');
+  if (partes.length !== 3) return false;
+
+  const dia = parseInt(partes[0], 10);
+  const mes = parseInt(partes[1], 10);
+  const ano = parseInt(partes[2], 10);
+
+  if (isNaN(dia) || isNaN(mes) || isNaN(ano)) return false;
+
+  return (
+    ano >= 2020 &&
+    ano <= 2100 &&
+    mes >= 1 &&
+    mes <= 12 &&
+    dia >= 1 &&
+    dia <= 31
+  );
+};
 
 // ==================== MAIN ====================
 export async function extrairProdutosDoPDF(
   file: Buffer | Uint8Array,
   dataReferencia?: string,
   debug?: boolean
-): Promise<ProdutoCEASA[]> {
+): Promise<{ produtos: ProdutoCEASA[], dataExtraida?: string }> {
 
   const texto = await parsePDF(file);
   const linhas = normalizarLinhas(texto);
+
+  // 🔥 DEBUG: Mostrar primeiras 50 linhas para diagnóstico
+  if (debug) {
+    console.log('\n📄 [DEBUG] Primeiras 50 linhas do PDF:');
+    linhas.slice(0, 50).forEach((linha, idx) => {
+      console.log(`${idx + 1}: ${linha.substring(0, 100)}`);
+    });
+    console.log('=======================\n');
+  }
+
+  // 🔥 CAÇADOR DE DATAS (versão robusta)
+  let dataExtraidaDaTabela = extrairDataDoPDF(linhas);
+  
+  // Validar a data extraída
+  if (!isDataValida(dataExtraidaDaTabela)) {
+    console.log(`📅 [Parser] Data inválida ou não encontrada: ${dataExtraidaDaTabela || 'undefined'}`);
+    dataExtraidaDaTabela = undefined;
+  } else {
+    console.log(`📅 [Parser] Data válida extraída: ${dataExtraidaDaTabela}`);
+  }
 
   const produtos: ProdutoCEASA[] = [];
   let currentCategory = '';
@@ -159,7 +251,7 @@ export async function extrairProdutosDoPDF(
       tipo: parsed.tipo,
       kgEmbalagem: parsed.kg,
       valorMc: parsed.valorMc,
-      dataReferencia: dataReferencia || new Date().toISOString().split('T')[0],
+      dataReferencia: dataExtraidaDaTabela || dataReferencia || new Date().toISOString().split('T')[0],
       rawProduto: parsed.produto,
       rawTipo: parsed.tipo
     });
@@ -173,5 +265,9 @@ export async function extrairProdutosDoPDF(
     if (!map.has(chave)) map.set(chave, p);
   }
 
-  return Array.from(map.values());
+  // Retorna os produtos e a data que a inteligência encontrou!
+  return {
+    produtos: Array.from(map.values()),
+    dataExtraida: dataExtraidaDaTabela
+  };
 }
