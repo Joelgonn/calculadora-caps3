@@ -1,4 +1,7 @@
 {
+  "name": "tabela-de-descontos",
+  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,7 +15,6 @@
     "lucide-react": "^0.344.0",
     "next": "16.2.3",
     "pdf-parse": "^1.1.1",
-    "pdfjs-dist": "^3.11.174",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-pdf": "^10.4.1",

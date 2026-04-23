@@ -126,7 +126,7 @@ export async function parsePDF(file: Buffer | Uint8Array): Promise<string> {
   return data.text || '';
 };
 
-// ==================== EXTRAIR DATA DO PDF (VERSÃO ROBUSTA) ====================
+// ==================== EXTRAIR DATA DO PDF (VERSÃO ROBUSTA COM QUEBRA DE LINHA) ====================
 const extrairDataDoPDF = (linhas: string[]): string | undefined => {
   const normalizar = (t: string) =>
     t
@@ -135,38 +135,45 @@ const extrairDataDoPDF = (linhas: string[]): string | undefined => {
       .toUpperCase();
 
   // ================================
-  // 1. PRIORIDADE MÁXIMA: "DATA DA COLETA"
+  // 1. PRIORIDADE MÁXIMA: "DATA DA COLETA" com quebra de linha
   // ================================
-  for (const linha of linhas) {
-    const l = normalizar(linha);
+  for (let i = 0; i < linhas.length; i++) {
+    const linha = normalizar(linhas[i]);
 
-    if (l.includes('DATA DA COLETA') || l.includes('DATA DE COLETA')) {
-      const match = linha.match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/);
-      if (match) {
-        console.log(`📅 [Parser] Data encontrada na linha "DATA DA COLETA": ${match[0]}`);
-        return match[0];
+    // Detecta header da data
+    if (linha.includes('DATA DA COLETA') || linha.includes('DATA DE COLETA')) {
+
+      // 🔥 PROCURA NAS PRÓXIMAS 5 LINHAS (resolve quebra de linha do pdf-parse)
+      for (let j = i; j <= i + 5 && j < linhas.length; j++) {
+        const tentativa = linhas[j];
+
+        const match = tentativa.match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/);
+        if (match) {
+          console.log(`📅 [Parser] Data encontrada na linha ${j} (após header na linha ${i}): ${match[0]}`);
+          return match[0];
+        }
       }
     }
   }
 
   // ================================
-  // 2. DATA COM TEXTO (sexta-feira, etc.)
+  // 2. DATA COM TEXTO (sexta-feira, etc.) - primeiras 50 linhas
   // ================================
-  for (const linha of linhas.slice(0, 50)) {
-    const match = linha.match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/);
+  for (let i = 0; i < Math.min(50, linhas.length); i++) {
+    const match = linhas[i].match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/);
     if (match) {
-      console.log(`📅 [Parser] Data encontrada (texto contextual): ${match[0]}`);
+      console.log(`📅 [Parser] Data encontrada (texto contextual linha ${i}): ${match[0]}`);
       return match[0];
     }
   }
 
   // ================================
-  // 3. FALLBACK GLOBAL (último recurso)
+  // 3. FALLBACK GLOBAL (último recurso) - primeiras 30 linhas apenas
   // ================================
-  for (const linha of linhas) {
-    const match = linha.match(/\b(\d{2})[\/\-](\d{2})[\/\-](\d{4})\b/);
+  for (let i = 0; i < Math.min(30, linhas.length); i++) {
+    const match = linhas[i].match(/\b(\d{2})[\/\-](\d{2})[\/\-](\d{4})\b/);
     if (match) {
-      console.log(`📅 [Parser] Data encontrada (fallback global): ${match[0]}`);
+      console.log(`📅 [Parser] Data encontrada (fallback global linha ${i}): ${match[0]}`);
       return match[0];
     }
   }
@@ -217,7 +224,7 @@ export async function extrairProdutosDoPDF(
     console.log('=======================\n');
   }
 
-  // 🔥 CAÇADOR DE DATAS (versão robusta)
+  // 🔥 CAÇADOR DE DATAS (versão robusta com quebra de linha)
   let dataExtraidaDaTabela = extrairDataDoPDF(linhas);
   
   // Validar a data extraída

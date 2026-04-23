@@ -37,26 +37,25 @@ const isDataValida = (data?: string): boolean => {
   );
 };
 
+// Converter data DD/MM/AAAA para AAAA-MM-DD
+const converterDataParaISO = (dataBr: string): string => {
+  const partes = dataBr.split('/');
+  return `${partes[2]}-${partes[1]}-${partes[0]}`;
+};
+
 // 🔥 VALIDADOR DE PRODUTO (CRÍTICO)
 const validarProduto = (p: ProdutoCEASA): boolean => {
   if (!p) return false;
 
-  // Categoria deve existir e ter pelo menos 2 caracteres
   if (!p.categoria || p.categoria.length < 2) return false;
-  
-  // Tipo deve existir e ter pelo menos 2 caracteres
   if (!p.tipo || p.tipo.length < 2) return false;
-
-  // Valor deve ser positivo e não exceder 500 (limite realista)
   if (!p.valorMc || p.valorMc <= 0 || p.valorMc > 500) return false;
-
-  // KG deve ser positivo e não exceder 100 (limite realista)
   if (!p.kgEmbalagem || p.kgEmbalagem <= 0 || p.kgEmbalagem > 100) return false;
 
   return true;
 };
 
-// 🔥 SANITIZAÇÃO (SEM PERDER INFORMAÇÃO)
+// 🔥 SANITIZAÇÃO
 const sanitizarProduto = (p: ProdutoCEASA): ProdutoCEASA => {
   return {
     ...p,
@@ -115,31 +114,25 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // ==================== 3. EXTRAÇÃO ====================
+    // ==================== 3. EXTRAIR PRODUTOS E DATA (USANDO APENAS PDF-PARSE) ====================
     let produtosBrutos: ProdutoCEASA[] = [];
-    let dataExtraida: string | undefined;
+    let dataExtraidaBruta: string | undefined = undefined;
 
     try {
+      // 🔥 REMOVIDO: extrairDataPDFjs
+      // 🔥 AGORA USA APENAS O extrairProdutosDoPDF que já extrai a data internamente
       const resultado = await extrairProdutosDoPDF(buffer, undefined, debug);
       produtosBrutos = resultado.produtos;
-      dataExtraida = resultado.dataExtraida;
+      dataExtraidaBruta = resultado.dataExtraida; // 👈 Data no formato DD/MM/AAAA vinda do pdf-parse
       
       console.log(`✅ [API] Extraídos: ${produtosBrutos.length} produtos brutos`);
       
-      // 🔥 LOG IMPORTANTE: Mostrar a data extraída
-      if (dataExtraida) {
-        console.log(`📅 [API] Data extraída do PDF (bruta): ${dataExtraida}`);
-        
-        // Validar a data antes de usar
-        if (isDataValida(dataExtraida)) {
-          console.log(`✅ [API] Data válida: ${dataExtraida}`);
-        } else {
-          console.log(`❌ [API] Data inválida, será ignorada: ${dataExtraida}`);
-          dataExtraida = undefined;
-        }
+      if (dataExtraidaBruta) {
+        console.log(`✅ [API] Data extraída do PDF: ${dataExtraidaBruta}`);
       } else {
-        console.log(`📅 [API] Nenhuma data encontrada no PDF, usando fallback`);
+        console.log(`⚠️ [API] Nenhuma data encontrada no PDF`);
       }
+      
     } catch (err) {
       console.error('❌ [API] Erro na extração:', err);
       return NextResponse.json({
@@ -183,19 +176,17 @@ export async function POST(request: NextRequest) {
     console.log(`✅ [API] Após remoção de duplicados: ${produtosUnicos.length} produtos únicos`);
 
     // ==================== 6. DEFINIR DATA DE REFERÊNCIA ====================
-    // 🔥 CORREÇÃO: Só usa dataExtraida se ela for válida
     let dataReferenciaFinal: string;
+    let dataExtraidaISO: string | undefined = undefined;
     
-    if (dataExtraida && isDataValida(dataExtraida)) {
-      // Converter de DD/MM/AAAA para AAAA-MM-DD
-      const partes = dataExtraida.split('/');
-      const dataISO = `${partes[2]}-${partes[1]}-${partes[0]}`;
-      dataReferenciaFinal = dataISO;
-      console.log(`📅 [API] Usando data do PDF: ${dataExtraida} -> ${dataISO}`);
+    // Converte a data extraída (DD/MM/AAAA) para ISO (AAAA-MM-DD) se for válida
+    if (dataExtraidaBruta && isDataValida(dataExtraidaBruta)) {
+      dataExtraidaISO = converterDataParaISO(dataExtraidaBruta);
+      dataReferenciaFinal = dataExtraidaISO;
+      console.log(`📅 [API] Usando data do PDF (pdf-parse): ${dataExtraidaBruta} -> ${dataExtraidaISO}`);
     } else {
-      // Tenta pegar do formData se existir
       const dataDoForm = formData.get('dataReferencia') as string | null;
-      if (dataDoForm && isDataValida(dataDoForm)) {
+      if (dataDoForm) {
         dataReferenciaFinal = dataDoForm;
         console.log(`📅 [API] Usando data do formulário: ${dataDoForm}`);
       } else {
@@ -208,7 +199,7 @@ export async function POST(request: NextRequest) {
     if (debug) {
       console.log('\n📊 ===== DEBUG API =====');
       console.log(`📅 Data referência (usada nos produtos): ${dataReferenciaFinal}`);
-      console.log(`📅 Data extraída do PDF (válida): ${dataExtraida || '❌ Não encontrada'}`);
+      console.log(`📅 Data extraída do PDF (pdf-parse): ${dataExtraidaBruta || '❌ Não encontrada'}`);
       console.log(`✔ Válidos e únicos: ${produtosUnicos.length}`);
       console.log(`❌ Rejeitados: ${rejeitados.length}`);
 
@@ -247,7 +238,6 @@ export async function POST(request: NextRequest) {
       }, { status: 200 });
     }
 
-    // Preparar resposta simplificada (sem dados brutos desnecessários)
     const respostaProdutos = produtosUnicos.map(p => ({
       categoria: p.categoria,
       tipo: p.tipo,
@@ -257,19 +247,13 @@ export async function POST(request: NextRequest) {
     }));
 
     console.log(`✅ [API] Sucesso! Retornando ${respostaProdutos.length} produtos para o frontend`);
-    
-    // Converter dataExtraida para o formato que o frontend espera (DD/MM/AAAA)
-    let dataExtraidaFrontend: string | undefined = undefined;
-    if (dataExtraida && isDataValida(dataExtraida)) {
-      dataExtraidaFrontend = dataExtraida; // Já está no formato DD/MM/AAAA
-    }
 
     return NextResponse.json({
       success: true,
       totalProdutos: respostaProdutos.length,
       produtos: respostaProdutos,
       dataReferencia: dataReferenciaFinal,
-      dataExtraida: dataExtraidaFrontend, // 👈 Envia a data no formato DD/MM/AAAA
+      dataExtraida: dataExtraidaBruta, // 👈 Envia a data no formato DD/MM/AAAA
       rejeitadosCount: rejeitados.length
     });
 
