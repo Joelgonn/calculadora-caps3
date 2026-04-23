@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
@@ -111,7 +111,7 @@ const Toast = ({ message, type, onClose }: { message: string; type: 'success' | 
   );
 };
 
-// ==================== COMPONENTE: NOTA CARD ====================
+// ==================== COMPONENTE: NOTA CARD COM SWIPE ====================
 const NotaCard = ({ nota, onView, onDelete, onEdit, onDivergencia }: { 
   nota: NotaFiscal; 
   onView: () => void; 
@@ -119,68 +119,173 @@ const NotaCard = ({ nota, onView, onDelete, onEdit, onDivergencia }: {
   onEdit: (nota: NotaFiscal) => void;
   onDivergencia: (nota: NotaFiscal) => void;
 }) => {
+  const [translateX, setTranslateX] = useState(0);
+  const startX = useRef(0);
+  
   if (!nota || !nota.itens || !nota.id) return null;
   
   const totalItens = nota.itens.reduce((acc, item) => acc + (item.quantidade || 0), 0);
   const temDivergencia = nota.statusValidacao === 'divergente' || nota.itens.some(i => i.statusValidacao === 'divergente');
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const currentX = e.touches[0].clientX;
+    const diff = currentX - startX.current;
+
+    if (diff > 80) return setTranslateX(80);
+    if (diff < -80) return setTranslateX(-80);
+
+    setTranslateX(diff);
+  };
+
+  const handleTouchEnd = () => {
+    if (translateX > 60) {
+      onEdit(nota);
+    } else if (translateX < -60) {
+      onDelete();
+    }
+    setTranslateX(0);
+  };
+
   return (
-    <div className={`group bg-white border rounded-xl px-4 py-3 flex items-center justify-between transition-all duration-200 hover:shadow-lg hover:-translate-y-[2px] ${
-      temDivergencia 
-        ? 'border-amber-300 bg-amber-50/30 hover:border-amber-400' 
-        : 'border-slate-200 hover:border-emerald-300'
-    }`}>
-      
-      <div className="flex-1">
-        <div className="flex items-center gap-3 flex-wrap">
-          {temDivergencia && (
-            <span className="text-xs font-medium text-amber-600 bg-amber-100 px-2 py-0.5 rounded-md flex items-center gap-1">
-              <AlertTriangle size={10} />
-              Divergente
-            </span>
-          )}
-          <p className="text-sm font-semibold text-slate-800 group-hover:text-emerald-700 transition">
-            {nota.empresa || '-'}
-          </p>
-          <span className="text-xs text-slate-300">•</span>
-          <p className="text-xs text-slate-500">Empenho: {nota.empenho || '-'}</p>
-          <span className="text-xs text-slate-300">•</span>
-          <p className="text-xs font-mono text-slate-600">NF: {nota.numeroNota || '-'}</p>
-          <span className="text-xs text-slate-300">•</span>
-          <p className="text-xs text-slate-500">{nota.data || '-'}</p>
-          <span className="text-xs text-slate-300">•</span>
-          <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md flex items-center gap-1">
-            <Package size={10} />
-            {totalItens.toFixed(1)} kg
-          </span>
+    <div className="relative overflow-hidden">
+      {/* SWIPE ACTIONS FUNDO */}
+      <div className="absolute inset-0 flex justify-between items-center px-4 pointer-events-none">
+        <div className="text-blue-600 text-sm font-bold flex items-center gap-1">
+          <Pencil size={14} /> Editar
         </div>
-        <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-          <Calendar size={10} />
-          Tabela Ceasa: {nota.dataTabelaCeasa || '-'}
-        </p>
+        <div className="text-rose-600 text-sm font-bold flex items-center gap-1">
+          <Trash2 size={14} /> Excluir
+        </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="text-right mr-2">
-          <p className="text-[10px] text-slate-400 uppercase tracking-wide">Total</p>
-          <p className={`text-sm font-bold ${temDivergencia ? 'text-amber-600' : 'text-emerald-600'}`}>
-            {formatarMoeda(nota.totalGeral || 0)}
-          </p>
+      {/* CARD COM SWIPE */}
+      <div
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{ transform: `translateX(${translateX}px)` }}
+        className={`relative z-10 transition-transform duration-200 bg-white border rounded-xl transition-all duration-200 hover:shadow-lg ${
+          temDivergencia 
+            ? 'border-amber-300 bg-amber-50/30 hover:border-amber-400' 
+            : 'border-slate-200 hover:border-emerald-300'
+        }`}
+      >
+        
+        {/* VERSÃO MOBILE (vertical) */}
+        <div className="md:hidden p-3 space-y-2">
+          
+          <div className="flex justify-between items-start gap-2">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-slate-800">
+                {nota.empresa || '-'}
+              </p>
+              <p className="text-xs text-slate-500">
+                Emp: {nota.empenho} • NF: {nota.numeroNota}
+              </p>
+            </div>
+
+            <p className={`text-sm font-bold ${
+              temDivergencia ? 'text-amber-600' : 'text-emerald-600'
+            }`}>
+              {formatarMoeda(nota.totalGeral || 0)}
+            </p>
+          </div>
+
+          <div className="flex justify-between text-xs text-slate-500">
+            <span className="flex items-center gap-1">
+              <Calendar size={10} /> {nota.data}
+            </span>
+            <span className="flex items-center gap-1">
+              <Package size={10} /> {totalItens.toFixed(1)} kg
+            </span>
+          </div>
+
+          <div className="text-[10px] text-slate-400">
+            Tabela CEASA: {nota.dataTabelaCeasa || '-'}
+          </div>
+
+          {temDivergencia && (
+            <div className="text-[11px] text-amber-600 font-medium flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-md">
+              <AlertTriangle size={12} />
+              Esta nota possui divergência
+            </div>
+          )}
+
+          <div className="flex justify-between mt-2 pt-2 border-t border-slate-100 gap-1">
+            <button onClick={onView} className="flex-1 text-xs text-slate-600 bg-slate-50 py-2 rounded-lg hover:bg-slate-100 transition">
+              👁️ Ver
+            </button>
+            <button onClick={() => onEdit(nota)} className="flex-1 text-xs text-blue-600 bg-blue-50 py-2 rounded-lg hover:bg-blue-100 transition">
+              ✏️ Editar
+            </button>
+            <button onClick={() => onDivergencia(nota)} className="flex-1 text-xs text-amber-600 bg-amber-50 py-2 rounded-lg hover:bg-amber-100 transition">
+              ⚠️ Relatório
+            </button>
+            <button onClick={onDelete} className="flex-1 text-xs text-rose-600 bg-rose-50 py-2 rounded-lg hover:bg-rose-100 transition">
+              🗑️ Excluir
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-all duration-200">
-          <button onClick={onView} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all duration-200" title="Visualizar nota">
-            <Eye size={16} />
-          </button>
-          <button onClick={() => onEdit(nota)} className="p-2 rounded-lg hover:bg-blue-50 text-slate-500 hover:text-blue-600 transition-all duration-200" title="Editar nota">
-            <Pencil size={16} />
-          </button>
-          <button onClick={() => onDivergencia(nota)} className="p-2 rounded-lg hover:bg-amber-50 text-slate-500 hover:text-amber-600 transition-all duration-200" title="Gerar relatório de divergência">
-            <AlertTriangle size={16} />
-          </button>
-          <button onClick={onDelete} className="p-2 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all duration-200" title="Excluir nota">
-            <Trash2 size={16} />
-          </button>
+        {/* VERSÃO DESKTOP (horizontal intacta) */}
+        <div className="hidden md:flex items-center justify-between px-4 py-3">
+          
+          <div className="flex-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              {temDivergencia && (
+                <span className="text-xs font-medium text-amber-600 bg-amber-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <AlertTriangle size={10} />
+                  Divergente
+                </span>
+              )}
+              <p className="text-sm font-semibold text-slate-800 group-hover:text-emerald-700 transition">
+                {nota.empresa || '-'}
+              </p>
+              <span className="text-xs text-slate-300">•</span>
+              <p className="text-xs text-slate-500">Empenho: {nota.empenho || '-'}</p>
+              <span className="text-xs text-slate-300">•</span>
+              <p className="text-xs font-mono text-slate-600">NF: {nota.numeroNota || '-'}</p>
+              <span className="text-xs text-slate-300">•</span>
+              <p className="text-xs text-slate-500">{nota.data || '-'}</p>
+              <span className="text-xs text-slate-300">•</span>
+              <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md flex items-center gap-1">
+                <Package size={10} />
+                {totalItens.toFixed(1)} kg
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+              <Calendar size={10} />
+              Tabela Ceasa: {nota.dataTabelaCeasa || '-'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="text-right mr-2">
+              <p className="text-[10px] text-slate-400 uppercase tracking-wide">Total</p>
+              <p className={`text-sm font-bold ${temDivergencia ? 'text-amber-600' : 'text-emerald-600'}`}>
+                {formatarMoeda(nota.totalGeral || 0)}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-all duration-200">
+              <button onClick={onView} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all duration-200" title="Visualizar nota">
+                <Eye size={16} />
+              </button>
+              <button onClick={() => onEdit(nota)} className="p-2 rounded-lg hover:bg-blue-50 text-slate-500 hover:text-blue-600 transition-all duration-200" title="Editar nota">
+                <Pencil size={16} />
+              </button>
+              <button onClick={() => onDivergencia(nota)} className="p-2 rounded-lg hover:bg-amber-50 text-slate-500 hover:text-amber-600 transition-all duration-200" title="Gerar relatório de divergência">
+                <AlertTriangle size={16} />
+              </button>
+              <button onClick={onDelete} className="p-2 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all duration-200" title="Excluir nota">
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -274,24 +379,21 @@ export default function NotasFinalizadasPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grouped'>('grouped');
   const [expandedEmpenhos, setExpandedEmpenhos] = useState<Set<string>>(new Set());
+  const [filtroStatus, setFiltroStatus] = useState<'todas' | 'ok' | 'divergente'>('todas');
 
-  // VERIFICAR CONEXÃO COM SUPABASE
   useEffect(() => {
     const verificarConexao = async () => {
       try {
         const { error } = await supabase.from('notas_fiscais').select('count', { count: 'exact', head: true });
         if (error) throw error;
         setSupabaseStatus('connected');
-        console.log('✅ Supabase conectado');
       } catch (error) {
         setSupabaseStatus('disconnected');
-        console.warn('⚠️ Supabase desconectado, usando apenas localStorage');
       }
     };
     verificarConexao();
   }, []);
 
-  // Carregar notas
   const carregarNotas = async () => {
     try {
       if (supabaseStatus === 'connected') {
@@ -468,23 +570,36 @@ export default function NotasFinalizadasPage() {
     router.push('/dashboard/cadastro');
   };
 
-  // 🔥 FUNÇÃO DE IMPRESSÃO - Abre em nova aba
   const imprimirNota = (nota: NotaFiscal, modo: 'conferencia' | 'divergencia') => {
     window.open(`/print/${nota.id}?modo=${modo}`, '_blank');
   };
 
   const filtrarNotas = () => {
-    if (!searchTerm) return bancoNotas;
-    return bancoNotas.filter(nota =>
-      nota.empresa?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      nota.empenho?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      nota.numeroNota?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    let resultado = bancoNotas;
+
+    if (searchTerm) {
+      resultado = resultado.filter(nota =>
+        nota.empresa?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        nota.empenho?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        nota.numeroNota?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (filtroStatus === 'divergente') {
+      resultado = resultado.filter(nota => nota.statusValidacao === 'divergente');
+    }
+
+    if (filtroStatus === 'ok') {
+      resultado = resultado.filter(nota => nota.statusValidacao !== 'divergente');
+    }
+
+    return resultado;
   };
 
   const notasFiltradas = filtrarNotas();
   const totalGeral = notasFiltradas.reduce((acc, nota) => acc + (nota.totalGeral || 0), 0);
   const notasComDivergencia = notasFiltradas.filter(n => n.statusValidacao === 'divergente').length;
+  const totalNotasFiltradas = notasFiltradas.length;
   const empenhosAgrupados = agruparPorEmpenho(notasFiltradas);
   const totalEmpenhos = empenhosAgrupados.length;
 
@@ -497,84 +612,180 @@ export default function NotasFinalizadasPage() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* HEADER */}
-      <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-200">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white shadow-md">
-            <ClipboardList size={18} />
+    <div className="space-y-4 pb-20 md:pb-0">
+      
+      {/* HEADER REFATORADO - Mobile horizontal, Desktop completo */}
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
+        
+        {/* MOBILE: Layout compacto horizontal */}
+        <div className="md:hidden p-3">
+          
+          {/* Linha 1: Logo + Título + Botão Nova */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white shadow-md">
+                <ClipboardList size={16} />
+              </div>
+              <div>
+                <h1 className="text-sm font-bold text-slate-800">Notas</h1>
+                <p className="text-[9px] text-slate-400">Finalizadas</p>
+              </div>
+            </div>
+
+            <Link
+              href="/dashboard/cadastro"
+              className="bg-gradient-to-r from-emerald-600 to-teal-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-md flex items-center gap-1"
+            >
+              <Plus size={12} />
+              Nova
+            </Link>
           </div>
-          <div>
-            <h1 className="text-lg font-semibold text-slate-800">Notas Finalizadas</h1>
-            <p className="text-xs text-slate-500">Histórico de conferências</p>
+
+          {/* Linha 2: Controles (scroll horizontal) */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+            
+            <div className="flex bg-slate-100 rounded-lg p-0.5 flex-shrink-0">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-2 py-1 text-[10px] font-medium rounded transition-all ${
+                  viewMode === 'list' 
+                    ? 'bg-white text-slate-800 shadow-sm' 
+                    : 'text-slate-500'
+                }`}
+              >
+                <List size={12} className="inline mr-1" />
+                Lista
+              </button>
+              <button
+                onClick={() => setViewMode('grouped')}
+                className={`px-2 py-1 text-[10px] font-medium rounded transition-all ${
+                  viewMode === 'grouped' 
+                    ? 'bg-white text-slate-800 shadow-sm' 
+                    : 'text-slate-500'
+                }`}
+              >
+                <Layers size={12} className="inline mr-1" />
+                Empenho
+              </button>
+            </div>
+
+            {supabaseStatus === 'connected' && (
+              <div className="flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded-full flex-shrink-0">
+                <Cloud size={10} className="text-emerald-600" />
+                <span className="text-[9px] text-emerald-700 font-medium">Cloud</span>
+              </div>
+            )}
+            {supabaseStatus === 'disconnected' && (
+              <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-full flex-shrink-0">
+                <CloudOff size={10} className="text-amber-600" />
+                <span className="text-[9px] text-amber-700 font-medium">Offline</span>
+              </div>
+            )}
+
+            <button
+              onClick={forcarSincronizacao}
+              disabled={isSyncing || supabaseStatus !== 'connected'}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-lg text-[10px] font-medium transition-all flex items-center gap-1 flex-shrink-0 disabled:opacity-50"
+            >
+              <RefreshCw size={10} className={isSyncing ? 'animate-spin' : ''} />
+              Sync
+            </button>
+
+            {filtroStatus !== 'todas' && (
+              <div className="bg-emerald-100 px-2 py-0.5 rounded-full flex-shrink-0">
+                <span className="text-[9px] font-semibold text-emerald-700">
+                  {filtroStatus === 'divergente' ? '⚠️ Divergentes' : '✅ Validados'}
+                </span>
+              </div>
+            )}
+
+            <div className="bg-slate-100 px-2 py-0.5 rounded-full flex-shrink-0">
+              <span className="text-[9px] font-medium text-slate-600">
+                {totalNotasFiltradas} nota(s)
+              </span>
+            </div>
+
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {supabaseStatus === 'connected' ? (
-            <div className="hidden md:flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded-full">
-              <Cloud size={12} className="text-emerald-600" />
-              <span className="text-[10px] text-emerald-700 font-medium">Cloud</span>
+
+        {/* DESKTOP: Layout completo original (INALTERADO) */}
+        <div className="hidden md:flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white shadow-md">
+              <ClipboardList size={18} />
             </div>
-          ) : supabaseStatus === 'disconnected' ? (
-            <div className="hidden md:flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-full">
-              <CloudOff size={12} className="text-amber-600" />
-              <span className="text-[10px] text-amber-700 font-medium">Offline</span>
+            <div>
+              <h1 className="text-lg font-semibold text-slate-800">Notas Finalizadas</h1>
+              <p className="text-xs text-slate-500">Histórico de conferências</p>
             </div>
-          ) : null}
-          
-          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
-            <button
-              onClick={() => setViewMode('list')}
-              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
-                viewMode === 'list' 
-                  ? 'bg-white text-slate-800 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <List size={12} />
-              Lista
-            </button>
-            <button
-              onClick={() => setViewMode('grouped')}
-              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
-                viewMode === 'grouped' 
-                  ? 'bg-white text-slate-800 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <Layers size={12} />
-              Por Empenho
-            </button>
           </div>
-          
-          <button
-            onClick={forcarSincronizacao}
-            disabled={isSyncing || supabaseStatus !== 'connected'}
-            className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1 disabled:opacity-50"
-          >
-            <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
-          </button>
-          
-          <Link
-            href="/dashboard/cadastro"
-            className="bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-[1px] flex items-center gap-2"
-          >
-            <Plus size={16} />
-            Nova
-          </Link>
+          <div className="flex items-center gap-2">
+            {supabaseStatus === 'connected' ? (
+              <div className="flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded-full">
+                <Cloud size={12} className="text-emerald-600" />
+                <span className="text-[10px] text-emerald-700 font-medium">Cloud</span>
+              </div>
+            ) : supabaseStatus === 'disconnected' ? (
+              <div className="flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-full">
+                <CloudOff size={12} className="text-amber-600" />
+                <span className="text-[10px] text-amber-700 font-medium">Offline</span>
+              </div>
+            ) : null}
+            
+            <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
+                  viewMode === 'list' 
+                    ? 'bg-white text-slate-800 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <List size={12} />
+                Lista
+              </button>
+              <button
+                onClick={() => setViewMode('grouped')}
+                className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
+                  viewMode === 'grouped' 
+                    ? 'bg-white text-slate-800 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Layers size={12} />
+                Por Empenho
+              </button>
+            </div>
+            
+            <button
+              onClick={forcarSincronizacao}
+              disabled={isSyncing || supabaseStatus !== 'connected'}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1 disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+            </button>
+            
+            <Link
+              href="/dashboard/cadastro"
+              className="bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-[1px] flex items-center gap-2"
+            >
+              <Plus size={16} />
+              Nova
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* STATS CARDS */}
+      {/* STATS CARDS - Desktop */}
       {bancoNotas.length > 0 && (
-        <div className="grid grid-cols-4 gap-3">
+        <div className="hidden md:grid grid-cols-4 gap-3">
           <div className="group bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-3 hover:shadow-md transition-all duration-200 hover:-translate-y-[1px]">
             <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-all duration-200">
               <FileText size={18} />
             </div>
             <div>
               <p className="text-xs text-slate-500">Notas</p>
-              <p className="text-lg font-bold text-slate-800">{bancoNotas.length}</p>
+              <p className="text-lg font-bold text-slate-800">{totalNotasFiltradas}</p>
             </div>
           </div>
 
@@ -610,7 +821,7 @@ export default function NotasFinalizadasPage() {
         </div>
       )}
 
-      {/* PESQUISA */}
+      {/* PESQUISA E FILTROS */}
       {bancoNotas.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-3">
           <input
@@ -620,6 +831,31 @@ export default function NotasFinalizadasPage() {
             placeholder="Buscar por empresa, empenho ou número da NF..."
             className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200"
           />
+          
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {[
+              { key: 'todas', label: '📋 Todas' },
+              { key: 'divergente', label: '⚠️ Com divergência' },
+              { key: 'ok', label: '✅ Sem divergência' }
+            ].map((chip) => {
+              const active = filtroStatus === chip.key;
+              return (
+                <button
+                  key={chip.key}
+                  onClick={() => setFiltroStatus(chip.key as any)}
+                  className={`
+                    whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-semibold transition-all
+                    ${active
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }
+                  `}
+                >
+                  {chip.label}
+                </button>
+              );
+            })}
+          </div>
           
           {viewMode === 'grouped' && empenhosAgrupados.length > 0 && (
             <div className="flex items-center justify-between">
@@ -663,7 +899,7 @@ export default function NotasFinalizadasPage() {
         </div>
       ) : notasFiltradas.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-xl p-8 text-center animate-in fade-in duration-200">
-          <p className="text-slate-500 text-sm">Nenhuma nota encontrada</p>
+          <p className="text-slate-500 text-sm">Nenhuma nota encontrada com este filtro</p>
         </div>
       ) : viewMode === 'list' ? (
         <div className="space-y-2">
@@ -694,6 +930,44 @@ export default function NotasFinalizadasPage() {
           ))}
         </div>
       )}
+
+      {/* MOBILE STICKY SUMMARY */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 px-4 py-3 shadow-lg">
+        <div className="flex items-center justify-between">
+          
+          <div>
+            <p className="text-[10px] text-slate-400 uppercase tracking-wide">Total Geral</p>
+            <p className="text-base font-bold text-emerald-600">
+              {formatarMoeda(totalGeral)}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="text-center">
+              <p className="text-[10px] text-slate-400">Notas</p>
+              <p className="text-sm font-semibold text-slate-700">{totalNotasFiltradas}</p>
+            </div>
+
+            {notasComDivergencia > 0 && (
+              <div className="text-center">
+                <p className="text-[10px] text-slate-400">Divergentes</p>
+                <p className="text-sm font-bold text-amber-600 flex items-center gap-1">
+                  <AlertTriangle size={12} /> {notasComDivergencia}
+                </p>
+              </div>
+            )}
+
+            {filtroStatus !== 'todas' && (
+              <div className="bg-emerald-100 rounded-full px-2 py-1">
+                <p className="text-[9px] font-semibold text-emerald-700">
+                  {filtroStatus === 'divergente' ? '⚠️ Filtrado' : '✅ Filtrado'}
+                </p>
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
 
       {/* TOAST */}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
